@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lands Commission - EX DATA Recording & Verification System</title>
+  <link rel="stylesheet" href="/style.css">
+  <!-- Bundled html2pdf for client-side pixel-perfect PDF export -->
+  <script src="/vendor/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="gov-top-bar">
+    <div class="gov-branding">
+      <div class="gov-crest">🇬🇭</div>
+      <div class="gov-title">
+        <h1>LANDS COMMISSION</h1>
+        <p>SURVEY AND MAPPING DIVISION • EX DATA REGISTRATION & VERIFICATION SYSTEM</p>
+      </div>
+    </div>
+    <div class="gov-top-actions">
+      <div class="network-badge" id="netBadge">
+        <div class="network-dot"></div>
+        <span id="netStatusText">Detecting Network...</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btnOpenRecords">
+        📁 Saved Records (<span id="recordsCount">0</span>)
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btnOpenQrModal">
+        📱 Scan Assistant
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <div class="app-container">
+    
+    <!-- Left Column: Form Editor -->
+    <aside class="editor-panel">
+      <div class="editor-header">
+        <h2>📝 EX DATA Entry Form</h2>
+        <div class="header-quick-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLoadSample" title="Load sample data for testing">
+            Load Sample
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnNewRecord" title="Create clean new record">
+            ➕ New
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-scroll-body">
+        <form id="recordForm" autocomplete="off">
+
+          <!-- Section 1: Identification & Codes -->
+          <div class="form-section">
+            <div class="section-label">
+              <span>1. Reference & Verification Codes</span>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="referenceId">REFERENCE ID</label>
+                <div class="input-with-button">
+                  <input type="text" id="referenceId" class="form-control" placeholder="e.g. GX1722219" required>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnGenRef" title="Auto generate reference ID">Auto</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="regionalNumber">REGIONAL NUMBER</label>
+                <input type="text" id="regionalNumber" class="form-control" placeholder="e.g. SGGA.G3488/2026" required>
+              </div>
+            </div>
+
+            <div class="form-row single">
+              <div class="form-group">
+                <label for="verificationCode">VERIFICATION CODE</label>
+                <div class="input-with-button">
+                  <input type="text" id="verificationCode" class="form-control" placeholder="e.g. SGGA EX 19 1A/26/10/14/150-65" required>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnGenVCode" title="Auto generate verification code">Auto</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="recordDate">DATE</label>
+                <input type="text" id="recordDate" class="form-control" placeholder="e.g. 14 October 2026" required>
+              </div>
+
+              <div class="form-group">
+                <label for="processedPoints">PROCESSED POINTS</label>
+                <input type="number" id="processedPoints" class="form-control" placeholder="4" min="1" required>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Client & Locality Details -->
+          <div class="form-section">
+            <div class="section-label">
+              <span>2. Client & Locality Details</span>
+            </div>
+
+            <div class="form-row single">
+              <div class="form-group">
+                <label for="clientName">CLIENT NAME(S)</label>
+                <input type="text" id="clientName" class="form-control" placeholder="e.g. LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="region">REGION</label>
+                <select id="region" class="form-control" required>
+                  <option value="Greater Accra">Greater Accra</option>
+                  <option value="Ashanti">Ashanti</option>
+                  <option value="Western">Western</option>
+                  <option value="Central">Central</option>
+                  <option value="Eastern">Eastern</option>
+                  <option value="Volta">Volta</option>
+                  <option value="Northern">Northern</option>
+                  <option value="Upper East">Upper East</option>
+                  <option value="Upper West">Upper West</option>
+                  <option value="Bono">Bono</option>
+                  <option value="Bono East">Bono East</option>
+                  <option value="Ahafo">Ahafo</option>
+                  <option value="Oti">Oti</option>
+                  <option value="Savannah">Savannah</option>
+                  <option value="North East">North East</option>
+                  <option value="Western North">Western North</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="locality">LOCALITY</label>
+                <input type="text" id="locality" class="form-control" placeholder="e.g. OYARIFA" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="amountPaid">AMOUNT PAID</label>
+                <input type="text" id="amountPaid" class="form-control" placeholder="e.g. GHS 150.00" required>
+              </div>
+              <div class="form-group">
+                <label for="surveyorName">SURVEYOR'S NAME</label>
+                <input type="text" id="surveyorName" class="form-control" placeholder="e.g. DANNY MENSA" required>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Beacon Coordinates -->
+          <div class="form-section">
+            <div class="section-label">
+              <span>3. Beacon Index & Coordinates</span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnAddBeaconRow">+ Add Point</button>
+            </div>
+
+            <table class="beacons-editor-table">
+              <thead>
+                <tr>
+                  <th>BEACON INDEX</th>
+                  <th>X (EASTING)</th>
+                  <th>Y (NORTHING)</th>
+                  <th style="width: 32px;"></th>
+                </tr>
+              </thead>
+              <tbody id="beaconsEditorBody">
+                <!-- Injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section 4: Authorization Officer -->
+          <div class="form-section">
+            <div class="section-label">
+              <span>4. Officer Authorization (Optional Pre-fill)</span>
+            </div>
+
+            <div class="form-row single">
+              <div class="form-group">
+                <label for="smdOfficerName">SMD OFFICER NAME (Leave blank for hand sign)</label>
+                <input type="text" id="smdOfficerName" class="form-control" placeholder="Leave empty for blank signature line">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: QR Code Verification Target -->
+          <div class="form-section">
+            <div class="section-label">
+              <span>5. QR Code Link & Phone Scan Settings</span>
+            </div>
+
+            <div class="qr-config-box">
+              <div class="form-group">
+                <label for="baseUrlInput">QR Verification Base URL</label>
+                <input type="text" id="baseUrlInput" class="form-control" placeholder="https://...trycloudflare.com">
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnUsePublic" style="background: #ecfdf5; color: #047857; border-color: #a7f3d0; font-weight: 700;">🌐 Worldwide Public Link (Works Anywhere)</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnUseWifiIp">📡 Local Wi-Fi IP</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnUseLocalhost">💻 Localhost</button>
+              </div>
+              <div class="hint" id="tunnelStatusBadge" style="margin-top: 8px; font-size: 0.78rem; display: flex; align-items: center; gap: 6px; color: #059669; font-weight: 600;">
+                <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981;"></span>
+                <span>Worldwide Public Link Active — Scannable on ANY phone, ANY Wi-Fi, or mobile data (4G/5G)!</span>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Editor Action Footer -->
+      <div class="editor-footer">
+        <button type="button" class="btn btn-success" id="btnSaveRecord" style="width: 100%;">
+          💾 Save & Update Record
+        </button>
+        <div class="btn-action-group">
+          <button type="button" class="btn btn-primary" id="btnDownloadPdf">
+            📥 Download PDF
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnPrintSlip">
+            🖨️ Print Slip (A4)
+          </button>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="btnTestVerification">
+          🔍 Test QR / Open Verification Page ↗
+        </button>
+      </div>
+    </aside>
+
+    <!-- Right Column: Live Realistic A4 Preview -->
+    <main class="preview-panel">
+      <!-- Preview Toolbar -->
+      <div class="preview-toolbar">
+        <div class="preview-toolbar-title">
+          <span>📄 Live A4 Document Preview</span>
+          <div class="live-pill">Live Synced</div>
+        </div>
+        <div class="preview-toolbar-buttons">
+          <button type="button" class="btn btn-primary btn-sm" id="btnToolbarDownload">
+            📥 Download PDF
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnToolbarPrint">
+            🖨️ Print
+          </button>
+        </div>
+      </div>
+
+      <!-- Realistic A4 Paper (Standard A4 Dimensions) -->
+      <div class="document-sheet-container">
+        <div class="a4-sheet" id="printableA4Document">
+
+          <!-- ================= SLIP 1: OFFICIAL COPY ================= -->
+          <section class="slip-half" id="slipOfficial">
+            <!-- Header -->
+            <div class="slip-header">
+              <div class="doc-title-main">LANDS COMMISSION</div>
+              <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
+              <div class="doc-title-type">EX DATA</div>
+            </div>
+
+            <!-- Beacons Table -->
+            <table class="doc-beacons-table">
+              <thead>
+                <tr>
+                  <th class="col-index">BEACON INDEX</th>
+                  <th class="col-x">X</th>
+                  <th class="col-y">Y</th>
+                </tr>
+              </thead>
+              <tbody class="doc-beacons-tbody">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+
+            <!-- Client Name -->
+            <div class="doc-client-row">
+              <strong>CLIENT NAME: </strong><span class="preview-client-name">LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO</span>
+            </div>
+
+            <!-- Two-Column Metadata Details -->
+            <div class="doc-details-grid">
+              <!-- Left Column -->
+              <div>
+                <div class="detail-line">
+                  <span class="lbl">REFERENCE ID:</span>
+                  <span class="val preview-ref-id">GX1722219</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">REGIONAL NUMBER:</span>
+                  <span class="val preview-regional-no">SGGA.G3488/2026</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">LOCALITY:</span>
+                  <span class="val preview-locality">OYARIFA</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">AMOUNT PAID:</span>
+                  <span class="val preview-amount">GHS 150.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">SURVEYOR'S NAME:</span>
+                  <span class="val preview-surveyor">DANNY MENSA</span>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div>
+                <div class="detail-line">
+                  <span class="lbl">VERIFICATION CODE:</span>
+                  <span class="val preview-verification-code">SGGA EX 19 1A/26/10/14/150-65</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">REGION:</span>
+                  <span class="val preview-region">Greater Accra</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">PROCESSED POINTS:</span>
+                  <span class="val preview-points">4</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">DATE:</span>
+                  <span class="val preview-date">14 October 2026</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Scannable QR Code -->
+            <div class="doc-qr-container">
+              <img class="doc-qr-img preview-qr-img" src="" alt="Official Verification QR Code">
+            </div>
+
+            <!-- Authorization Block -->
+            <div class="doc-auth-block">
+              <div class="doc-auth-title">AUTHORIZATION</div>
+              <div class="auth-line">
+                <span class="auth-lbl">SMD OFFICER NAME:</span>
+                <div class="auth-dots">
+                  <span class="auth-val preview-smd-officer"></span>
+                </div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">SIGNATURE:</span>
+                <div class="auth-dots"></div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">DATE:</span>
+                <div class="auth-dots"></div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">STAMP:</span>
+                <div class="auth-dots"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ================= CUT HERE DIVIDER ================= -->
+          <div class="doc-cut-divider">
+            <div class="cut-line-left"></div>
+            <div class="cut-label">✂ CUT HERE ✂</div>
+            <div class="cut-line-right"></div>
+          </div>
+
+          <!-- ================= SLIP 2: CLIENT COPY ================= -->
+          <section class="slip-half" id="slipClient">
+            <!-- Header -->
+            <div class="slip-header">
+              <div class="doc-title-main">LANDS COMMISSION</div>
+              <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
+              <div class="doc-title-type">EX DATA</div>
+            </div>
+
+            <!-- Beacons Table -->
+            <table class="doc-beacons-table">
+              <thead>
+                <tr>
+                  <th class="col-index">BEACON INDEX</th>
+                  <th class="col-x">X</th>
+                  <th class="col-y">Y</th>
+                </tr>
+              </thead>
+              <tbody class="doc-beacons-tbody">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+
+            <!-- Client Name -->
+            <div class="doc-client-row">
+              <strong>CLIENT NAME: </strong><span class="preview-client-name">LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO</span>
+            </div>
+
+            <!-- Two-Column Metadata Details -->
+            <div class="doc-details-grid">
+              <!-- Left Column -->
+              <div>
+                <div class="detail-line">
+                  <span class="lbl">REFERENCE ID:</span>
+                  <span class="val preview-ref-id">GX1722219</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">REGIONAL NUMBER:</span>
+                  <span class="val preview-regional-no">SGGA.G3488/2026</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">LOCALITY:</span>
+                  <span class="val preview-locality">OYARIFA</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">AMOUNT PAID:</span>
+                  <span class="val preview-amount">GHS 150.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">SURVEYOR'S NAME:</span>
+                  <span class="val preview-surveyor">DANNY MENSA</span>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div>
+                <div class="detail-line">
+                  <span class="lbl">VERIFICATION CODE:</span>
+                  <span class="val preview-verification-code">SGGA EX 19 1A/26/10/14/150-65</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">REGION:</span>
+                  <span class="val preview-region">Greater Accra</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">PROCESSED POINTS:</span>
+                  <span class="val preview-points">4</span>
+                </div>
+                <div class="detail-line">
+                  <span class="lbl">DATE:</span>
+                  <span class="val preview-date">14 October 2026</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Scannable QR Code -->
+            <div class="doc-qr-container">
+              <img class="doc-qr-img preview-qr-img" src="" alt="Official Verification QR Code">
+            </div>
+
+            <!-- Authorization Block -->
+            <div class="doc-auth-block">
+              <div class="doc-auth-title">AUTHORIZATION</div>
+              <div class="auth-line">
+                <span class="auth-lbl">SMD OFFICER NAME:</span>
+                <div class="auth-dots">
+                  <span class="auth-val preview-smd-officer"></span>
+                </div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">SIGNATURE:</span>
+                <div class="auth-dots"></div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">DATE:</span>
+                <div class="auth-dots"></div>
+              </div>
+              <div class="auth-line">
+                <span class="auth-lbl">STAMP:</span>
+                <div class="auth-dots"></div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Modal: Saved Records History -->
+  <div class="modal-overlay" id="recordsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📁 Saved EX DATA Records</h3>
+        <button class="modal-close" id="btnCloseRecords">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="recordSearchInput" class="form-control" placeholder="Search by Reference ID, Client Name, or Locality..." style="margin-bottom: 14px;">
+        <div class="records-list" id="recordsListContainer">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Mobile QR Scan Assistant -->
+  <div class="modal-overlay" id="qrAssistantModal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>📱 Mobile QR Code Scanner Assistant</h3>
+        <button class="modal-close" id="btnCloseQrModal">&times;</button>
+      </div>
+      <div class="modal-body scan-assistant-content">
+        <p style="font-size: 0.9rem; color: #475569;">
+          Open your smartphone camera or QR scanner app and point it at the code below to test verification immediately!
+        </p>
+
+        <div class="scan-qr-display">
+          <img id="modalQrImg" src="" alt="Large QR Code">
+        </div>
+
+        <div class="scan-url-box" id="modalQrUrlText"></div>
+
+        <div style="text-align: left; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 0.8rem; color: #065f46; margin-top: 14px;">
+          <strong>🌐 Works Anywhere in the World (No Wi-Fi Restriction!):</strong>
+          <ul style="margin-left: 18px; margin-top: 4px;">
+            <li>This QR code uses a <strong>secure Public HTTPS link</strong>.</li>
+            <li>Scan it from <strong>ANY smartphone</strong> on mobile data (MTN, Telecel, AirtelTigo, 4G/5G) or any other Wi-Fi network.</li>
+            <li>When you print this document, anyone can verify it anywhere at any time!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,890 @@
+/* =========================================================
+   LANDS COMMISSION - SURVEY AND MAPPING DIVISION
+   EX DATA Recording & QR Verification System Stylesheet
+========================================================= */
+
+:root {
+  --gov-navy: #0d233a;
+  --gov-navy-dark: #071524;
+  --gov-blue: #1a4f7c;
+  --gov-blue-light: #e8f1f8;
+  --gov-gold: #c59b27;
+  --gov-gold-light: #fdf6e2;
+  --gov-green: #1b7340;
+  --gov-green-light: #e6f4ea;
+  --gov-red: #c5221f;
+  --gov-gray-50: #f8fafc;
+  --gov-gray-100: #f1f5f9;
+  --gov-gray-200: #e2e8f0;
+  --gov-gray-300: #cbd5e1;
+  --gov-gray-400: #94a3b8;
+  --gov-gray-600: #475569;
+  --gov-gray-800: #1e293b;
+  --gov-gray-900: #0f172a;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-doc: Arial, Helvetica, sans-serif;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: #f1f5f9;
+  color: var(--gov-gray-900);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Header Bar */
+.gov-top-bar {
+  background: linear-gradient(135deg, var(--gov-navy-dark) 0%, var(--gov-navy) 100%);
+  color: #ffffff;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid var(--gov-gold);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.gov-branding {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gov-crest {
+  width: 44px;
+  height: 44px;
+  background: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: var(--gov-navy);
+  font-size: 20px;
+  border: 2px solid var(--gov-gold);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.gov-title h1 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.gov-title p {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.gov-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.network-badge {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.network-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+/* Main Layout Grid */
+.app-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left Column: Form Editor */
+.editor-panel {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--gov-gray-200);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 85px;
+  max-height: calc(100vh - 110px);
+}
+
+.editor-header {
+  padding: 16px 20px;
+  background: var(--gov-gray-50);
+  border-bottom: 1px solid var(--gov-gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.editor-header h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gov-navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-quick-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-scroll-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Form Sections */
+.form-section {
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--gov-gray-200);
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.section-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gov-blue);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row.single {
+  grid-template-columns: 1fr;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gov-gray-600);
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  border: 1px solid var(--gov-gray-300);
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: var(--gov-gray-900);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--gov-blue);
+  box-shadow: 0 0 0 3px rgba(26, 79, 124, 0.15);
+}
+
+.input-with-button {
+  display: flex;
+  gap: 6px;
+}
+
+.input-with-button .form-control {
+  flex: 1;
+}
+
+/* Beacons Table in Editor */
+.beacons-editor-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.beacons-editor-table th {
+  background: var(--gov-gray-100);
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  border: 1px solid var(--gov-gray-300);
+}
+
+.beacons-editor-table td {
+  padding: 4px;
+  border: 1px solid var(--gov-gray-300);
+}
+
+.beacons-editor-table input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  background: transparent;
+}
+
+.beacons-editor-table input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: var(--gov-blue);
+}
+
+.btn-remove-row {
+  background: none;
+  border: none;
+  color: var(--gov-red);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.btn-remove-row:hover {
+  background: #fee2e2;
+}
+
+.qr-config-box {
+  background: #f8fafc;
+  border: 1px dashed var(--gov-gray-300);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.qr-config-box .hint {
+  font-size: 0.75rem;
+  color: var(--gov-gray-600);
+  margin-top: 4px;
+}
+
+/* Editor Action Footer */
+.editor-footer {
+  padding: 16px 20px;
+  background: var(--gov-gray-50);
+  border-top: 1px solid var(--gov-gray-200);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--gov-navy);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: var(--gov-navy-dark);
+}
+
+.btn-success {
+  background-color: var(--gov-green);
+  color: #ffffff;
+}
+
+.btn-success:hover {
+  background-color: #155724;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: var(--gov-gray-800);
+  border-color: var(--gov-gray-300);
+}
+
+.btn-secondary:hover {
+  background-color: var(--gov-gray-100);
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+.btn-action-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Right Column: Preview Panel */
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.preview-toolbar {
+  width: 100%;
+  max-width: 794px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gov-gray-200);
+}
+
+.preview-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--gov-navy);
+  font-size: 0.95rem;
+}
+
+.live-pill {
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.live-pill::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+}
+
+.preview-toolbar-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* =========================================================
+   A4 EXACT DOCUMENT STYLES (MATCHES USER IMAGE 100%)
+========================================================= */
+
+.document-sheet-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 50px;
+}
+
+.a4-sheet {
+  width: 794px; /* Standard A4 at 96 DPI */
+  min-height: 1123px; /* Standard A4 height */
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 42px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--font-doc);
+  color: #000000;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Single Slip Layout (Top Half and Bottom Half) */
+.slip-half {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.slip-header {
+  margin-bottom: 12px;
+}
+
+.doc-title-main {
+  font-size: 19px;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+}
+
+.doc-title-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: #333333;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+.doc-title-type {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #111111;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+/* Table: BEACON INDEX | X | Y */
+.doc-beacons-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 14px;
+  border: 1px solid #d0d5dd;
+}
+
+.doc-beacons-table th {
+  background-color: #f1f3f5;
+  border: 1px solid #d0d5dd;
+  padding: 4px 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: left;
+  color: #000000;
+}
+
+.doc-beacons-table th.col-x,
+.doc-beacons-table th.col-y {
+  width: 25%;
+}
+
+.doc-beacons-table th.col-index {
+  width: 50%;
+}
+
+.doc-beacons-table td {
+  border: 1px solid #d0d5dd;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #000000;
+}
+
+/* Client & Survey Details */
+.doc-client-row {
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.doc-client-row strong {
+  font-weight: 800;
+  color: #000000;
+}
+
+.doc-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 30px;
+  row-gap: 5px;
+  margin-bottom: 14px;
+}
+
+.detail-line {
+  font-size: 10.5px;
+  display: flex;
+  align-items: baseline;
+  line-height: 1.4;
+}
+
+.detail-line .lbl {
+  font-weight: 800;
+  color: #000000;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.detail-line .val {
+  font-weight: 400;
+  color: #111111;
+  word-break: break-all;
+}
+
+/* Center QR Code Container */
+.doc-qr-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8px 0 12px 0;
+}
+
+.doc-qr-img {
+  width: 76px;
+  height: 76px;
+  image-rendering: pixelated;
+}
+
+/* Authorization Block */
+.doc-auth-block {
+  margin-top: 4px;
+}
+
+.doc-auth-title {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.auth-line {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+}
+
+.auth-lbl {
+  font-weight: 800;
+  width: 145px;
+  flex-shrink: 0;
+  color: #000000;
+}
+
+.auth-dots {
+  flex: 1;
+  border-bottom: 1.5px dotted #555555;
+  height: 12px;
+  position: relative;
+}
+
+.auth-val {
+  position: absolute;
+  bottom: 2px;
+  left: 6px;
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+/* Cut Line Divider */
+.doc-cut-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 18px 0;
+  position: relative;
+  width: 100%;
+}
+
+.cut-line-left,
+.cut-line-right {
+  flex: 1;
+  border-bottom: 1.5px dashed #777777;
+  height: 1px;
+}
+
+.cut-label {
+  padding: 0 14px;
+  font-size: 8.5px;
+  color: #666666;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   MODAL & POPUPS
+========================================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 85vh;
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  background: var(--gov-gray-50);
+  border-bottom: 1px solid var(--gov-gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  font-size: 1.1rem;
+  color: var(--gov-navy);
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--gov-gray-400);
+}
+
+.modal-close:hover {
+  color: var(--gov-gray-800);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Records List in Modal */
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.record-item {
+  border: 1px solid var(--gov-gray-200);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.record-item:hover {
+  border-color: var(--gov-blue);
+  background: var(--gov-blue-light);
+}
+
+.record-meta h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gov-navy);
+}
+
+.record-meta p {
+  font-size: 0.8rem;
+  color: var(--gov-gray-600);
+}
+
+.record-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* QR Code Scan Assistant Modal */
+.scan-assistant-content {
+  text-align: center;
+  padding: 10px;
+}
+
+.scan-qr-display {
+  width: 220px;
+  height: 220px;
+  margin: 16px auto;
+  padding: 10px;
+  background: #ffffff;
+  border: 2px solid var(--gov-gray-200);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.scan-qr-display img {
+  width: 100%;
+  height: 100%;
+}
+
+.scan-url-box {
+  background: var(--gov-gray-100);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+  margin: 12px 0;
+  border: 1px solid var(--gov-gray-200);
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: var(--gov-navy);
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toastIn 0.3s ease;
+}
+
+.toast.success {
+  border-left: 4px solid #22c55e;
+}
+
+.toast.error {
+  border-left: 4px solid #ef4444;
+}
+
+@keyframes toastIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* =========================================================
+   NATIVE PRINT STYLES (EXACT A4 PAPER ON PRINTER)
+========================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .gov-top-bar,
+  .editor-panel,
+  .preview-toolbar,
+  .modal-overlay,
+  .toast-container {
+    display: none !important;
+  }
+
+  .app-container {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .preview-panel {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .document-sheet-container {
+    padding: 0 !important;
+  }
+
+  .a4-sheet {
+    box-shadow: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .slip-half {
+    page-break-inside: avoid;
+  }
+
+  .doc-cut-divider {
+    margin: 16px 0;
+  }
+}
+
