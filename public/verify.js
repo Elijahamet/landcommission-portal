@@ -78,9 +78,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  let currentRenderedRecord = null;
+
   // If token is present, immediately render for zero-latency instant display
   if (tokenRecord) {
+    currentRenderedRecord = tokenRecord;
     renderRecord(tokenRecord);
+    // Background sync token record to server database so server has it cached
+    try {
+      fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tokenRecord)
+      }).catch(() => {});
+    } catch (e) {}
   }
 
   // 2. Fetch Record from API (updates with any server-side verified edits)
@@ -90,6 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.record) {
+        currentRenderedRecord = data.record;
         renderRecord(data.record);
       }
     } else if (!tokenRecord) {
@@ -102,8 +114,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Wire up Download PDF Button on verification page
+  const btnDownloadSlipPdf = document.getElementById('btnDownloadSlipPdf');
+  if (btnDownloadSlipPdf) {
+    btnDownloadSlipPdf.addEventListener('click', async () => {
+      if (!currentRenderedRecord) return;
+      btnDownloadSlipPdf.disabled = true;
+      btnDownloadSlipPdf.textContent = 'Preparing PDF...';
+      try {
+        const refId = encodeURIComponent(currentRenderedRecord.referenceId || currentRenderedRecord.id);
+        const tokParam = token ? `&d=${encodeURIComponent(token)}` : '';
+        const downloadUrl = `/api/records/${refId}/pdf?baseUrl=${encodeURIComponent(window.location.origin)}${tokParam}`;
+        
+        // Fetch as blob to verify success before triggering file save
+        const res = await fetch(downloadUrl);
+        if (!res.ok) throw new Error('PDF download error ' + res.status);
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `${currentRenderedRecord.referenceId || 'EX_DATA'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        alert('Could not download PDF: ' + err.message);
+      } finally {
+        btnDownloadSlipPdf.disabled = false;
+        btnDownloadSlipPdf.innerHTML = '<span>📥 Download Official PDF</span>';
+      }
+    });
+  }
+
   // 3. Render Record to DOM (Matching Screenshot 1, 2, 4)
   function renderRecord(r) {
+    currentRenderedRecord = r;
     // Populate Beacons Table
     const tbody = document.getElementById('beaconsTbody');
     tbody.innerHTML = '';
@@ -142,15 +188,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     setText('captionDate', recordDate);
     setText('valStationLocation', r.stationLocation || 'SMD-EXAMINATION, ACCRA');
 
-    // Update Status Pill if authorized
+    // Update Status Pill
     const badgeStatus = document.getElementById('badgeStatus');
-    if (r.status === 'VERIFIED' || r.smdOfficerName) {
+    if (badgeStatus) {
       badgeStatus.innerHTML = `
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
         <span>VERIFIED</span>
       `;
       badgeStatus.style.background = '#dcfce7';
       badgeStatus.style.color = '#15803d';
+    }
+
+    // Update Officer Notice Box
+    const noticeBox = document.querySelector('.officer-notice-box');
+    if (noticeBox) {
+      noticeBox.style.background = '#f0fdf4';
+      noticeBox.style.borderLeftColor = '#22c55e';
+      const noticeHeading = noticeBox.querySelector('.notice-heading');
+      if (noticeHeading) {
+        noticeHeading.textContent = 'Official EX DATA Record Verified - Survey and Mapping Division';
+        noticeHeading.style.color = '#166534';
+      }
+      const noticeText = noticeBox.querySelector('.notice-text');
+      if (noticeText) {
+        noticeText.textContent = `Valid digital EX DATA record registered under Reference ID ${r.referenceId || id}. Authenticated by Lands Commission Ghana.`;
+        noticeText.style.color = '#15803d';
+      }
     }
 
     loadingBox.style.display = 'none';

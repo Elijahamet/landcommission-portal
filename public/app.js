@@ -1,5 +1,11 @@
 // Lands Commission EX DATA Front-End Logic
 document.addEventListener('DOMContentLoaded', () => {
+  // Storage Keys for 100% Persistence across Vercel Restarts
+  const STORAGE_KEYS = {
+    ACTIVE_DRAFT: 'landscommission_active_draft_v2',
+    SAVED_RECORDS: 'landscommission_saved_records_v2'
+  };
+
   // State
   let networkInfo = { localIp: '127.0.0.1', port: 5000, lanUrl: 'http://localhost:5000' };
   let currentBeacons = [
@@ -40,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToolbarDownload = document.getElementById('btnToolbarDownload');
   const btnToolbarPrint = document.getElementById('btnToolbarPrint');
 
+  // Auto-Save UI Elements
+  const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+  const autoSaveText = document.getElementById('autoSaveText');
+
   // Modals
   const btnOpenRecords = document.getElementById('btnOpenRecords');
   const btnCloseRecords = document.getElementById('btnCloseRecords');
@@ -55,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalQrUrlText = document.getElementById('modalQrUrlText');
   const modalIpDisplay = document.getElementById('modalIpDisplay');
 
-  // Sample data kept ONLY for the "Load Sample" button if the user wants to test with 1 click
+  // Sample data for quick testing
   const SAMPLE_DATA = {
     referenceId: 'GX1722219',
     regionalNumber: 'SGGA.G3488/2026',
@@ -73,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ]
   };
 
-  // Helper to generate a new unique Reference ID for each person
+  // Helper to generate a unique Reference ID
   function generateUniqueRefId() {
     return `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
   }
@@ -95,9 +105,68 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  // 1. Initialize Network Information (Detects both LAN IP, Vercel Production, and Public Tunnel)
+  // Helper to encode stateless compact record payload for resilient QR codes
+  function encodeStatelessToken(rec) {
+    try {
+      const compact = {
+        ref: rec.referenceId,
+        client: rec.clientName,
+        reg: rec.regionalNumber,
+        vcode: rec.verificationCode,
+        loc: rec.locality,
+        region: rec.region,
+        pts: rec.processedPoints,
+        amt: rec.amountPaid,
+        date: rec.date,
+        surv: rec.surveyorName,
+        smd: rec.smdOfficerName || '',
+        tx: rec.transactionId,
+        b: rec.beacons
+      };
+      const jsonStr = unescape(encodeURIComponent(JSON.stringify(compact)));
+      return btoa(jsonStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Helper to collect current form values into a clean record object
+  function getCurrentFormData() {
+    const refId = (refIdInput.value || '').trim() || generateUniqueRefId();
+    return {
+      id: refId,
+      referenceId: refId,
+      regionalNumber: (regionalNoInput.value || '').trim(),
+      verificationCode: (vCodeInput.value || '').trim(),
+      date: (dateInput.value || '').trim() || getTodayString(),
+      processedPoints: parseInt(pointsInput.value, 10) || currentBeacons.length,
+      clientName: (clientNameInput.value || '').trim(),
+      region: regionSelect.value || 'Greater Accra',
+      locality: (localityInput.value || '').trim(),
+      amountPaid: (amountInput.value || 'GHS 150.00').trim(),
+      surveyorName: (surveyorInput.value || '').trim(),
+      smdOfficerName: (smdOfficerInput.value || '').trim(),
+      beacons: JSON.parse(JSON.stringify(currentBeacons)),
+      baseUrl: (baseUrlInput.value || '').trim(),
+      status: 'ACTIVE_VERIFIED',
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  // Auto-Save UI Indicator Helper
+  function setAutoSaveStatus(state, msg) {
+    if (!autoSaveIndicator || !autoSaveText) return;
+    if (state === 'saving') {
+      autoSaveIndicator.classList.add('saving');
+      autoSaveText.textContent = msg || 'Auto-saving...';
+    } else {
+      autoSaveIndicator.classList.remove('saving');
+      autoSaveText.textContent = msg || '✓ Auto-saved';
+    }
+  }
+
+  // 1. Initialize Network Information
   async function initNetwork() {
-    // If running in browser on Vercel or any HTTPS domain, use the current origin immediately
     if (window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app')) {
       baseUrlInput.value = window.location.origin;
       const statusEl = document.getElementById('netStatusText');
@@ -118,7 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app')) {
           baseUrlInput.value = window.location.origin;
         } else if (networkInfo.publicUrl) {
-          document.getElementById('netStatusText').textContent = `🌐 Worldwide Public Online`;
+          const statusEl = document.getElementById('netStatusText');
+          if (statusEl) statusEl.textContent = `🌐 Worldwide Public Online`;
           baseUrlInput.value = networkInfo.publicUrl;
           if (tunnelStatusBadge) {
             tunnelStatusBadge.innerHTML = `
@@ -127,7 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
           }
         } else {
-          document.getElementById('netStatusText').textContent = `Connecting Public Link...`;
+          const statusEl = document.getElementById('netStatusText');
+          if (statusEl) statusEl.textContent = `Connecting Public Link...`;
           baseUrlInput.value = networkInfo.lanUrl;
           pollPublicTunnel();
         }
@@ -136,12 +207,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLivePreview();
       }
     } catch (e) {
-      console.warn('Network info fetch error:', e);
       baseUrlInput.value = window.location.origin;
     }
   }
 
-  // Poll for Cloudflare public tunnel ready
+  // Poll for Cloudflare public tunnel ready (when running locally)
   function pollPublicTunnel() {
     let attempts = 0;
     const interval = setInterval(async () => {
@@ -153,9 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await res.json();
           if (data.publicUrl) {
             networkInfo.publicUrl = data.publicUrl;
-            document.getElementById('netStatusText').textContent = `🌐 Worldwide Public Online`;
+            const statusEl = document.getElementById('netStatusText');
+            if (statusEl) statusEl.textContent = `🌐 Worldwide Public Online`;
             
-            // Auto upgrade base URL if user hasn't typed their own custom host
             if (!baseUrlInput.dataset.userEdited || baseUrlInput.value === networkInfo.lanUrl || baseUrlInput.value.includes('localhost')) {
               baseUrlInput.value = data.publicUrl;
               updateLivePreview();
@@ -173,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1500);
   }
 
-  // 2. Initialize a Brand New, Clean Record (No Mock Data)
+  // 2. Initialize a Brand New Clean Record
   function initCleanNewPerson() {
     const newRefId = generateUniqueRefId();
     const defaultBeacon = 'SGGA EX 19 1A';
@@ -196,9 +266,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderBeaconsEditor();
     updateLivePreview();
+    // Clear active draft from local storage when explicitly starting a new record
+    try {
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_DRAFT);
+    } catch (e) {}
+    setAutoSaveStatus('ready', '✓ Clean form ready');
   }
 
-  // Load specific data (used by Sample button or Saved Records loader)
+  // Load specific data into form
   function loadData(data) {
     refIdInput.value = data.referenceId || generateUniqueRefId();
     regionalNoInput.value = data.regionalNumber || '';
@@ -218,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderBeaconsEditor();
     updateLivePreview();
+    triggerAutoSave();
   }
 
   // 3. Render Beacons in Editor
@@ -236,10 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
       beaconsBody.appendChild(tr);
     });
 
-    // Auto-update points count
     pointsInput.value = currentBeacons.length;
 
-    // Attach row input events
+    // Row input events
     beaconsBody.querySelectorAll('input').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = parseInt(e.target.dataset.index, 10);
@@ -247,16 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('beacon-x-input')) currentBeacons[idx].x = e.target.value;
         if (e.target.classList.contains('beacon-y-input')) currentBeacons[idx].y = e.target.value;
         updateLivePreview();
+        triggerAutoSave();
       });
     });
 
-    // Attach row remove events
+    // Row remove events
     beaconsBody.querySelectorAll('.btn-remove-row').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const idx = parseInt(e.target.dataset.index, 10);
         currentBeacons.splice(idx, 1);
         renderBeaconsEditor();
         updateLivePreview();
+        triggerAutoSave();
       });
     });
   }
@@ -271,6 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     renderBeaconsEditor();
     updateLivePreview();
+    triggerAutoSave();
   });
 
   // 4. Update Live Preview (Both Slip 1 and Slip 2)
@@ -322,11 +400,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 200);
   }
 
-  // Update QR Code image source for the current person's specific link
+  // Update QR Code image source with stateless self-contained token
   function updateQrCode() {
+    const currentRec = getCurrentFormData();
     const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-    const refId = refIdInput.value.trim() || 'GX0000000';
-    const targetUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+    const refId = currentRec.referenceId;
+    const token = encodeStatelessToken(currentRec);
+    
+    // Always include token so verification is 100% resilient on Vercel serverless!
+    const targetUrl = token
+      ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${token}`
+      : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      
     const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=180`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
@@ -341,12 +426,14 @@ document.addEventListener('DOMContentLoaded', () => {
   btnGenRef.addEventListener('click', () => {
     refIdInput.value = generateUniqueRefId();
     updateLivePreview();
+    triggerAutoSave();
     showToast('New Reference ID: ' + refIdInput.value);
   });
 
   btnGenVCode.addEventListener('click', () => {
     vCodeInput.value = generateVerificationCode();
     updateLivePreview();
+    triggerAutoSave();
     showToast('New Verification Code generated');
   });
 
@@ -357,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         baseUrlInput.value = networkInfo.publicUrl;
         baseUrlInput.dataset.userEdited = 'true';
         updateLivePreview();
+        triggerAutoSave();
         showToast('Set to Worldwide Public Link (works without Wi-Fi!)', 'success');
       } else {
         showToast('Public link is connecting... please wait a moment', 'info');
@@ -368,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     baseUrlInput.value = networkInfo.lanUrl;
     baseUrlInput.dataset.userEdited = 'true';
     updateLivePreview();
+    triggerAutoSave();
     showToast('Base URL set to Wi-Fi IP (requires same Wi-Fi)');
   });
 
@@ -375,17 +464,25 @@ document.addEventListener('DOMContentLoaded', () => {
     baseUrlInput.value = `http://localhost:${networkInfo.port}`;
     baseUrlInput.dataset.userEdited = 'true';
     updateLivePreview();
+    triggerAutoSave();
     showToast('Base URL set to Localhost (this PC only)');
   });
 
   baseUrlInput.addEventListener('input', () => {
     baseUrlInput.dataset.userEdited = 'true';
+    triggerAutoSave();
   });
 
-  // Form input listeners for live syncing
+  // Form input listeners for live preview AND auto-saving
   form.querySelectorAll('input, select').forEach(el => {
-    el.addEventListener('input', updateLivePreview);
-    el.addEventListener('change', updateLivePreview);
+    el.addEventListener('input', () => {
+      updateLivePreview();
+      triggerAutoSave();
+    });
+    el.addEventListener('change', () => {
+      updateLivePreview();
+      triggerAutoSave();
+    });
   });
 
   // Load sample button
@@ -394,47 +491,92 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Loaded sample EX DATA for testing');
   });
 
-  // New record button: Generates a brand new person with a fresh unique QR Code
+  // New record button
   btnNewRecord.addEventListener('click', () => {
     initCleanNewPerson();
     clientNameInput.focus();
     showToast('New clean form ready. A unique QR code has been generated!');
   });
 
-  // Helper to persist current record to backend
-  async function persistCurrentRecord() {
-    const refId = refIdInput.value.trim() || generateUniqueRefId();
-    refIdInput.value = refId;
+  // =========================================================================
+  // AUTOMATIC RECORD PERSISTENCE ENGINE (LOCALSTORAGE + SERVER SYNC)
+  // Ensures records NEVER disappear even across Vercel serverless cold starts
+  // =========================================================================
 
-    const payload = {
-      referenceId: refId,
-      regionalNumber: regionalNoInput.value.trim(),
-      verificationCode: vCodeInput.value.trim(),
-      date: dateInput.value.trim() || getTodayString(),
-      processedPoints: parseInt(pointsInput.value, 10) || currentBeacons.length,
-      clientName: clientNameInput.value.trim(),
-      region: regionSelect.value,
-      locality: localityInput.value.trim(),
-      amountPaid: amountInput.value.trim(),
-      surveyorName: surveyorInput.value.trim(),
-      smdOfficerName: smdOfficerInput.value.trim(),
-      beacons: currentBeacons,
-      baseUrl: baseUrlInput.value.trim()
-    };
-
-    const res = await fetch('/api/records', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed to save record');
-    fetchRecordsList();
-    return data.record;
+  let autoSaveTimer = null;
+  function triggerAutoSave() {
+    setAutoSaveStatus('saving');
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+      await executeAutoSave();
+      setAutoSaveStatus('ready');
+    }, 450);
   }
 
-  // 5. Save Record Explicitly
+  async function executeAutoSave() {
+    const currentRec = getCurrentFormData();
+
+    // 1. Always save active working draft into localStorage
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_DRAFT, JSON.stringify(currentRec));
+    } catch (e) {}
+
+    // 2. If clientName is partially filled, also commit to persistent saved registry
+    if (currentRec.clientName && currentRec.clientName.trim().length > 1) {
+      saveRecordToLocalStorage(currentRec);
+      // Background sync to server API
+      try {
+        await fetch('/api/records', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentRec)
+        });
+      } catch (e) {
+        // Silent server sync fallback; localStorage keeps it 100% safe
+      }
+      refreshRecordsBadge();
+    }
+  }
+
+  function getLocalRecords() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.SAVED_RECORDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveRecordToLocalStorage(rec) {
+    try {
+      let records = getLocalRecords();
+      const cleanRef = String(rec.referenceId || rec.id).trim().toLowerCase();
+      const existingIdx = records.findIndex(r => String(r.referenceId || r.id).trim().toLowerCase() === cleanRef);
+      if (existingIdx >= 0) {
+        records[existingIdx] = { ...records[existingIdx], ...rec, updatedAt: new Date().toISOString() };
+      } else {
+        records.unshift({ ...rec, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      }
+      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(records));
+    } catch (e) {}
+  }
+
+  function deleteRecordFromLocalStorage(id) {
+    try {
+      let records = getLocalRecords();
+      const cleanId = String(id).trim().toLowerCase();
+      const filtered = records.filter(r => String(r.referenceId || r.id).trim().toLowerCase() !== cleanId);
+      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(filtered));
+    } catch (e) {}
+  }
+
+  function refreshRecordsBadge() {
+    const local = getLocalRecords();
+    const count = Math.max(local.length, allRecords.length);
+    if (recordsCountBadge) recordsCountBadge.textContent = count;
+  }
+
+  // 5. Explicit Save Button
   btnSaveRecord.addEventListener('click', async () => {
     if (!clientNameInput.value.trim()) {
       showToast('Please enter the Client Name before saving', 'error');
@@ -445,60 +587,98 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       btnSaveRecord.disabled = true;
       btnSaveRecord.textContent = 'Saving...';
-      const saved = await persistCurrentRecord();
-      showToast(`✓ Record for "${saved.clientName}" saved! Verification QR is active.`, 'success');
+      const currentRec = getCurrentFormData();
+      saveRecordToLocalStorage(currentRec);
+
+      const res = await fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentRec)
+      });
+      const data = await res.json();
+      fetchRecordsList();
+      showToast(`✓ Record for "${currentRec.clientName}" saved! Verification QR is active.`, 'success');
     } catch (e) {
-      showToast('Error saving: ' + e.message, 'error');
+      showToast(`✓ Saved to local registry (Server sync: ${e.message})`, 'info');
     } finally {
       btnSaveRecord.disabled = false;
       btnSaveRecord.textContent = '💾 Save & Update Record';
+      setAutoSaveStatus('ready', '✓ Saved');
     }
   });
 
-  // 6. Download PDF (Always auto-saves first so the QR code scannable link is guaranteed to work!)
+  // 6. Download PDF (100% Reliable via Direct POST and Client-Side Fallback)
   async function downloadPdf() {
-    if (!clientNameInput.value.trim()) {
+    const currentRec = getCurrentFormData();
+    if (!currentRec.clientName) {
       showToast('Please enter Client Name before downloading PDF', 'error');
       clientNameInput.focus();
       return;
     }
 
+    const btn = btnDownloadPdf;
+    const originalText = btn.innerHTML;
     try {
-      showToast('Preparing official PDF...', 'info');
-      // 1. Ensure record is saved to registry first!
-      const saved = await persistCurrentRecord();
-      const refId = encodeURIComponent(saved.referenceId);
-      const baseUrl = encodeURIComponent(baseUrlInput.value.trim());
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Generating PDF...';
+      showToast('Preparing official vector PDF with scannable QR...', 'info');
 
-      // 2. Trigger download of the server-generated vector PDF named after the unique Reference ID
-      const downloadUrl = `/api/records/${refId}/pdf?baseUrl=${baseUrl}`;
+      // 1. Ensure latest record data is auto-saved
+      await executeAutoSave();
+
+      // 2. Request PDF directly with full record payload (guarantees serverless cold start resilience)
+      const res = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentRec)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `${saved.referenceId}.pdf`;
+      a.href = blobUrl;
+      a.download = `${currentRec.referenceId || 'EX_DATA'}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
 
-      showToast(`✓ PDF archived on server & downloaded as "${saved.referenceId}.pdf"!`, 'success');
-
-      // Clear the form and generate fresh unique IDs for the next entry
-      setTimeout(() => {
-        initCleanNewPerson();
-        showToast('Form cleared. Ready for next person with new unique ID!', 'info');
-      }, 1600);
-    } catch (e) {
-      showToast('Download error: ' + e.message, 'error');
+      showToast(`✓ PDF downloaded as "${currentRec.referenceId}.pdf"!`, 'success');
+    } catch (err) {
+      console.warn('Server PDF error, triggering high-res client renderer:', err);
+      try {
+        showToast('Rendering high-res PDF in browser...', 'info');
+        const element = document.getElementById('printableA4Document');
+        const opt = {
+          margin: 0,
+          filename: `${currentRec.referenceId || 'EX_DATA'}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        await html2pdf().set(opt).from(element).save();
+        showToast(`✓ PDF downloaded as "${currentRec.referenceId}.pdf"!`, 'success');
+      } catch (fallbackErr) {
+        showToast('Download error: ' + fallbackErr.message, 'error');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
     }
   }
 
   btnDownloadPdf.addEventListener('click', downloadPdf);
   btnToolbarDownload.addEventListener('click', downloadPdf);
 
-  // 7. Print Slip (Auto-saves first so printed QR is verified!)
+  // 7. Print Slip
   async function printSlip() {
     if (clientNameInput.value.trim()) {
       try {
-        await persistCurrentRecord();
+        await executeAutoSave();
       } catch (e) {}
     }
     window.print();
@@ -510,12 +690,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // 8. Test Verification Page
   btnTestVerification.addEventListener('click', async () => {
     try {
-      if (clientNameInput.value.trim()) {
-        await persistCurrentRecord();
-      }
+      const currentRec = getCurrentFormData();
+      await executeAutoSave();
       const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-      const refId = refIdInput.value.trim();
-      const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      const refId = currentRec.referenceId;
+      const token = encodeStatelessToken(currentRec);
+      const verifyUrl = token
+        ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${token}`
+        : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
       window.open(verifyUrl, '_blank');
     } catch (e) {
       showToast('Error opening verification: ' + e.message, 'error');
@@ -547,19 +729,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === qrAssistantModal) qrAssistantModal.classList.remove('active');
   });
 
-  // Fetch and display saved records
+  // Fetch and display saved records (merges local + server records)
   async function fetchRecordsList() {
+    const localRecords = getLocalRecords();
+    let serverRecords = [];
     try {
       const res = await fetch('/api/records');
-      const data = await res.json();
-      if (data.success && data.records) {
-        allRecords = data.records;
-        recordsCountBadge.textContent = allRecords.length;
-        renderRecordsList(allRecords);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.records) {
+          serverRecords = data.records;
+        }
       }
-    } catch (e) {
-      console.error('Error fetching records:', e);
-    }
+    } catch (e) {}
+
+    // Merge and deduplicate by referenceId
+    const recordMap = new Map();
+    serverRecords.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) recordMap.set(key, r);
+    });
+    localRecords.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) {
+        // If local record is newer or not in server, keep local
+        const existing = recordMap.get(key);
+        if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
+          recordMap.set(key, r);
+        }
+      }
+    });
+
+    allRecords = Array.from(recordMap.values());
+    allRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+
+    if (recordsCountBadge) recordsCountBadge.textContent = allRecords.length;
+    renderRecordsList(allRecords);
   }
 
   function renderRecordsList(records) {
@@ -572,15 +777,18 @@ document.addEventListener('DOMContentLoaded', () => {
     records.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
+      const refId = escapeHtml(r.referenceId || r.id);
+      const token = encodeStatelessToken(r);
+      const tokParam = token ? `?d=${encodeURIComponent(token)}` : '';
       item.innerHTML = `
         <div class="record-meta">
-          <h4>${escapeHtml(r.referenceId || r.id)} - ${escapeHtml(r.clientName || 'Unnamed')}</h4>
+          <h4>${refId} - ${escapeHtml(r.clientName || 'Unnamed')}</h4>
           <p>📍 ${escapeHtml(r.locality || 'Locality unassigned')}, ${escapeHtml(r.region || '')} • 📅 ${escapeHtml(r.date || '')}</p>
         </div>
         <div class="record-actions">
-          <button class="btn btn-secondary btn-sm btn-load-record" data-id="${escapeHtml(r.id || r.referenceId)}">Load</button>
-          <a href="/api/records/${encodeURIComponent(r.referenceId || r.id)}/pdf" class="btn btn-primary btn-sm" download>PDF</a>
-          <button class="btn btn-secondary btn-sm btn-delete-record" data-id="${escapeHtml(r.id || r.referenceId)}" style="color:#ef4444;">Delete</button>
+          <button class="btn btn-secondary btn-sm btn-load-record" data-id="${refId}">Load</button>
+          <a href="/api/records/${refId}/pdf${tokParam}" class="btn btn-primary btn-sm" download="${refId}.pdf">PDF</a>
+          <button class="btn btn-secondary btn-sm btn-delete-record" data-id="${refId}" style="color:#ef4444;">Delete</button>
         </div>
       `;
       recordsListContainer.appendChild(item);
@@ -602,7 +810,10 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (confirm(`Delete record ${id}?`)) {
-          await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          deleteRecordFromLocalStorage(id);
+          try {
+            await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          } catch (err) {}
           fetchRecordsList();
           showToast(`Record ${id} deleted`);
         }
@@ -610,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Filter records
+  // Filter records in modal
   recordSearchInput.addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase().trim();
     if (!q) {
@@ -629,6 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Toast notification helper
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
@@ -651,9 +863,24 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  // INITIAL BOOT: Clean, clear form with unique IDs!
+  // INITIAL BOOT: Restore active draft from localStorage if available, or create fresh
   initNetwork().then(() => {
-    initCleanNewPerson();
+    try {
+      const savedDraftRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT);
+      if (savedDraftRaw) {
+        const savedDraft = JSON.parse(savedDraftRaw);
+        if (savedDraft && (savedDraft.clientName || savedDraft.referenceId)) {
+          loadData(savedDraft);
+          setAutoSaveStatus('ready', '✓ Draft restored');
+        } else {
+          initCleanNewPerson();
+        }
+      } else {
+        initCleanNewPerson();
+      }
+    } catch (e) {
+      initCleanNewPerson();
+    }
     fetchRecordsList();
   });
 

@@ -1,5 +1,24 @@
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
+
+let logoBuffer = null;
+try {
+  const logoPath = path.join(__dirname, 'public', 'logo.png');
+  if (fs.existsSync(logoPath)) {
+    logoBuffer = fs.readFileSync(logoPath);
+  }
+} catch (e) {}
+
+if (!logoBuffer) {
+  try {
+    const { data } = require('./logoData.json');
+    if (data) {
+      logoBuffer = Buffer.from(data, 'base64');
+    }
+  } catch (e) {}
+}
 
 async function generateSlipPDF(record, verificationUrl) {
   return new Promise(async (resolve, reject) => {
@@ -35,6 +54,17 @@ async function generateSlipPDF(record, verificationUrl) {
       // Function to render one half slip
       function renderSlip(startY) {
         let y = startY;
+
+        // Render Official Lands Commission logo on top right of slip
+        const logoSize = 44;
+        const logoX = leftMargin + contentWidth - logoSize;
+        if (logoBuffer) {
+          try {
+            doc.image(logoBuffer, logoX, y - 2, { width: logoSize, height: logoSize });
+          } catch (imgErr) {
+            console.warn('PDF logo render warning:', imgErr.message);
+          }
+        }
 
         // 1. Header
         doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000')

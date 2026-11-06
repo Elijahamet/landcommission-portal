@@ -48,6 +48,7 @@ function encodeStatelessToken(rec) {
       amt: rec.amountPaid,
       date: rec.date,
       surv: rec.surveyorName,
+      smd: rec.smdOfficerName || '',
       tx: rec.transactionId,
       b: rec.beacons
     };
@@ -195,7 +196,60 @@ app.get('/api/qr', async (req, res) => {
   }
 });
 
-// PDF download endpoint
+// Direct PDF generation endpoint (POST with full record JSON payload)
+// Guarantees 100% reliable PDF download without requiring prior server database lookup
+app.post('/api/generate-pdf', async (req, res) => {
+  try {
+    const record = req.body || {};
+    const referenceId = (record.referenceId || record.id || `GX${Math.floor(1000000 + Math.random() * 9000000)}`).trim();
+    record.referenceId = referenceId;
+    record.id = record.id || referenceId;
+
+    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const autoOrigin = host ? `${proto}://${host}` : null;
+    const publicUrl = autoOrigin || getPublicUrl();
+    const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
+    const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
+
+    const token = encodeStatelessToken(record);
+    const verificationUrl = token
+      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${token}`
+      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+
+    record.verificationUrl = verificationUrl;
+
+    // Cache record in db
+    try {
+      db.save(record);
+    } catch (saveDbErr) {}
+
+    const pdfBuffer = await generateSlipPDF(record, verificationUrl);
+    const refIdClean = referenceId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${refIdClean}.pdf`;
+
+    // Save to disk cache if available
+    try {
+      const pdfDir = isVercel 
+        ? path.join(os.tmpdir(), 'saved_pdfs') 
+        : path.join(__dirname, 'saved_pdfs');
+      if (!fs.existsSync(pdfDir)) {
+        fs.mkdirSync(pdfDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(pdfDir, filename), pdfBuffer);
+    } catch (saveErr) {}
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('generate-pdf POST error:', err);
+    res.status(500).json({ success: false, error: 'Failed to generate PDF: ' + err.message });
+  }
+});
+
+// PDF download endpoint (GET)
 app.get('/api/records/:id/pdf', async (req, res) => {
   try {
     let record = db.getById(req.params.id);
@@ -216,9 +270,11 @@ app.get('/api/records/:id/pdf', async (req, res) => {
           amountPaid: parsed.amt,
           date: parsed.date,
           surveyorName: parsed.surv,
+          smdOfficerName: parsed.smd || '',
           transactionId: parsed.tx,
-          beacons: parsed.b
+          beacons: parsed.b || []
         };
+        db.save(record);
       } catch (e) {}
     }
 
@@ -233,9 +289,11 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const publicUrl = autoOrigin || getPublicUrl();
     const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
-    const verificationUrl = customBaseUrl 
-      ? `${customBaseUrl}/verify/${record.referenceId || record.id}`
-      : (record.verificationUrl || `${fallbackBase}/verify/${record.referenceId || record.id}`);
+    const token = encodeStatelessToken(record);
+    const targetBase = customBaseUrl || fallbackBase;
+    const verificationUrl = token
+      ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${token}`
+      : `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
     const refIdClean = (record.referenceId || record.id || 'EX_DATA').replace(/[^a-zA-Z0-9_-]/g, '_');
