@@ -65,21 +65,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalQrUrlText = document.getElementById('modalQrUrlText');
   const modalIpDisplay = document.getElementById('modalIpDisplay');
 
-  // Sample data for quick testing
+  // Sample data for quick testing matching official document (Image 1)
   const SAMPLE_DATA = {
-    referenceId: 'GX1722219',
-    regionalNumber: 'SGGA.G3488/2026',
-    verificationCode: 'SGGA EX 19 1A/26/10/14/150-65',
-    date: '14 October 2026',
+    referenceId: 'GX7109723',
+    regionalNumber: 'SGGA. G5098 26',
+    verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
+    date: '03 November 2026',
     processedPoints: 4,
-    clientName: 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
+    clientName: 'ALBERT WALE & AKUA SEKYERAA APPIAH',
     region: 'Greater Accra',
-    locality: 'OYARIFA',
+    locality: 'MIOTSO-PRAMPRAM',
     amountPaid: 'GHS 150.00',
-    surveyorName: 'DANNY MENSA',
+    surveyorName: 'AISSI KÉVINOS',
     smdOfficerName: '',
     beacons: [
-      { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
+      { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
     ]
   };
 

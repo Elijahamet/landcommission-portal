@@ -77,7 +77,7 @@ async function generateSlipPDF(record, verificationUrl) {
 
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
           .text('EX DATA', leftMargin, y, { characterSpacing: 0.3 });
-        y += 14;
+        y += 8; // No space between EX DATA and table (exact match to sample)
 
         // 2. Table: BEACON INDEX | X | Y
         const tableX = leftMargin;
@@ -121,7 +121,7 @@ async function generateSlipPDF(record, verificationUrl) {
           y += rowHeight;
         });
 
-        y += 10;
+        y += 8;
 
         // 3. Client Name
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000');
@@ -129,70 +129,67 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.font('Helvetica-Bold').text(String(record.clientName || ''));
         y += 14;
 
-        // 4. Two-Column Metadata
+        // 4. Two-Column Metadata (With "one one space" line gap between each row matching green marks)
         const col1X = leftMargin;
         const col2X = leftMargin + contentWidth * 0.52;
-        const lineHeight = 12.5;
+        const rowSpacing = 17.5;
 
-        // Col 1
+        // Row 1
         doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
         doc.text('REFERENCE ID: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.referenceId || record.id || ''));
 
-        // Col 2
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('VERIFICATION CODE: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.verificationCode || ''));
 
-        y += lineHeight;
+        y += rowSpacing;
 
-        // Col 1
+        // Row 2
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('REGIONAL NUMBER: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.regionalNumber || ''));
 
-        // Col 2
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('REGION: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.region || ''));
 
-        y += lineHeight;
+        y += rowSpacing;
 
-        // Col 1
+        // Row 3
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('LOCALITY: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.locality || ''));
 
-        // Col 2
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('PROCESSED POINTS: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.processedPoints || ''));
 
-        y += lineHeight;
+        y += rowSpacing;
 
-        // Col 1
+        // Row 4
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('AMOUNT PAID: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.amountPaid || ''));
 
-        // Col 2
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text('DATE: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.date || ''));
 
-        y += lineHeight;
+        y += rowSpacing;
 
-        // Col 1
+        // Row 5
         doc.font('Helvetica-Bold').fontSize(7.5);
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 14;
+        y += 15;
 
         // 5. Centered QR Code
-        const qrSize = 56;
+        const qrSize = 54;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         doc.image(qrBuffer, qrX, y, { width: qrSize, height: qrSize });
+        y += qrSize + 10;
         y += qrSize + 10;
 
         // 6. Authorization
@@ -229,7 +226,7 @@ async function generateSlipPDF(record, verificationUrl) {
       }
 
       // Render Slip 1 (Top / Official Copy)
-      renderSlip(32);
+      renderSlip(28);
 
       // Cut Line Divider in the middle of page
       const midY = 412;
@@ -246,7 +243,7 @@ async function generateSlipPDF(record, verificationUrl) {
         });
 
       // Render Slip 2 (Bottom / Customer Copy)
-      renderSlip(435);
+      renderSlip(430);
 
       doc.end();
     } catch (err) {
