@@ -35,6 +35,36 @@ if (!logoBuffer) {
   } catch (e) {}
 }
 
+// Function to draw 100% pure vector QR code with mathematically sharp edges and zero pixelation
+function drawVectorQRCode(doc, targetUrl, x, y, size) {
+  const qr = QRCode.create(targetUrl, {
+    errorCorrectionLevel: 'M',
+    margin: 0
+  });
+
+  const count = qr.modules.size;
+  const modSize = size / count;
+
+  doc.save();
+  doc.fillColor('#000000');
+
+  // Draw horizontal runs as single solid vector rectangles
+  for (let r = 0; r < count; r++) {
+    let startCol = -1;
+    for (let c = 0; c <= count; c++) {
+      const isDark = c < count ? qr.modules.get(r, c) : 0;
+      if (isDark && startCol === -1) {
+        startCol = c;
+      } else if (!isDark && startCol !== -1) {
+        const span = c - startCol;
+        doc.rect(x + startCol * modSize, y + r * modSize, span * modSize, modSize).fill();
+        startCol = -1;
+      }
+    }
+  }
+  doc.restore();
+}
+
 async function generateSlipPDF(record, verificationUrl) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -49,17 +79,8 @@ async function generateSlipPDF(record, verificationUrl) {
       doc.on('data', b => buffers.push(b));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      // Generate QR Code buffer with high resolution (ultra-sharp at 720+ DPI for instant phone camera scan)
+      // Target URL for vector QR code
       const qrTarget = verificationUrl || record.verificationUrl || `https://landcommission-portal.vercel.app/verify/${record.id || record.referenceId}`;
-      const qrBuffer = await QRCode.toBuffer(qrTarget, {
-        errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 680,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
-      });
 
       const pageWidth = doc.page.width;
       const leftMargin = 38;
@@ -187,13 +208,13 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 15;
+        y += 18;
 
-        // 5. Centered QR Code (Enlarged to 68 pt, ultra-sharp vector resolution for instant phone scanning)
-        const qrSize = 68;
+        // 5. Centered Vector QR Code (Compact 50 pt size, 100% razor-sharp vector paths with authentic spacing)
+        const qrSize = 50;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
-        doc.image(qrBuffer, qrX, y, { width: qrSize, height: qrSize });
-        y += qrSize + 6;
+        drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
+        y += qrSize + 8;
 
         // Thin horizontal separator line right under QR code (exact match to official sample)
         doc.save();
