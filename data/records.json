@@ -79,10 +79,10 @@
     ],
     "status": "ACTIVE_VERIFIED",
     "createdAt": "2026-11-03T10:15:00.000Z",
-    "updatedAt": "2026-11-07T11:12:25.224Z",
+    "updatedAt": "2026-11-07T17:39:31.230Z",
     "verificationUrl": "https://landcommission-portal.vercel.app/verify/GX2193345",
     "pdfFile": "GX2193345.pdf",
-    "pdfSavedAt": "2026-11-07T11:12:25.223Z"
+    "pdfSavedAt": "2026-11-07T17:39:31.229Z"
   },
   {
     "id": "GX4950255",
@@ -111,5 +111,89 @@
     "updatedAt": "2026-11-06T13:44:00.000Z",
     "verificationUrl": "https://landcommission-portal.vercel.app/verify/GX4950255",
     "pdfFile": "GX4950255.pdf"
+  },
+  {
+    "id": "GX8888888",
+    "referenceId": "GX8888888",
+    "regionalNumber": "SGGA. G7777 26",
+    "verificationCode": "SGGA CORS/2025/4/26/11/07/295-17",
+    "transactionId": "job_gx8888888_test",
+    "stationLocation": "GWCL, DODOWA",
+    "clientName": "NEW TEST OFFICER",
+    "region": "Greater Accra",
+    "locality": "ACCRA",
+    "processedPoints": 1,
+    "amountPaid": "GHS 150.00",
+    "date": "07 November 2026",
+    "surveyorName": "TESTER",
+    "smdOfficerName": "",
+    "beacons": [
+      {
+        "beaconIndex": "SGGA CORS/2025/4",
+        "x": "100",
+        "y": "200"
+      }
+    ],
+    "status": "ACTIVE_VERIFIED",
+    "createdAt": "2026-11-07T10:20:00.000Z",
+    "updatedAt": "2026-11-07T10:20:00.000Z",
+    "verificationUrl": "https://landcommission-portal.vercel.app/verify/GX8888888",
+    "pdfFile": "GX8888888.pdf"
+  },
+  {
+    "id": "GX8967032",
+    "referenceId": "GX8967032",
+    "regionalNumber": "SGGA.G9999/2026",
+    "verificationCode": "SGGA EX 19 1A/26/11/06/576-68",
+    "transactionId": "job_gx8967032_auth",
+    "stationLocation": "GWCL, DODOWA",
+    "clientName": "KWAME ASANTE",
+    "region": "Greater Accra",
+    "locality": "ACCRA CENTRAL",
+    "processedPoints": 1,
+    "amountPaid": "GHS 150.00",
+    "date": "06 November 2026",
+    "surveyorName": "JOHN DOE",
+    "smdOfficerName": "",
+    "beacons": [
+      {
+        "beaconIndex": "SGGA EX 19 1A",
+        "x": "333460.15",
+        "y": "1199651.081"
+      }
+    ],
+    "status": "ACTIVE_VERIFIED",
+    "createdAt": "2026-11-06T08:02:00.000Z",
+    "updatedAt": "2026-11-06T08:02:00.000Z",
+    "verificationUrl": "https://landcommission-portal.vercel.app/verify/GX8967032",
+    "pdfFile": "GX8967032.pdf"
+  },
+  {
+    "id": "GX9991111",
+    "referenceId": "GX9991111",
+    "regionalNumber": "SGGA.G1111/2026",
+    "verificationCode": "SGGA EX 19 1A/26/11/06/100-10",
+    "transactionId": "job_gx9991111_auth",
+    "stationLocation": "GWCL, DODOWA",
+    "clientName": "TEST CLIENT COLD START",
+    "region": "Greater Accra",
+    "locality": "TEMA",
+    "processedPoints": 1,
+    "amountPaid": "GHS 150.00",
+    "date": "06 November 2026",
+    "surveyorName": "COLD START SURVEYOR",
+    "smdOfficerName": "",
+    "beacons": [
+      {
+        "beaconIndex": "SGGA EX 19 1A",
+        "x": "100",
+        "y": "200"
+      }
+    ],
+    "status": "ACTIVE_VERIFIED",
+    "createdAt": "2026-11-06T08:03:00.000Z",
+    "updatedAt": "2026-11-06T08:03:00.000Z",
+    "verificationUrl": "https://landcommission-portal.vercel.app/verify/GX9991111",
+    "pdfFile": "GX9991111.pdf"
   }
 ]

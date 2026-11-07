@@ -183,8 +183,9 @@ app.post('/api/records', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    // Known official seed records always use the clean official URL matching the sample PDF
-    const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(referenceId.toUpperCase());
+    // Known official records always use the clean official URL matching the sample PDF
+    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
+    const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
       ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
@@ -268,7 +269,8 @@ app.post('/api/generate-pdf', async (req, res) => {
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
     // Clean verification URL: known records use official clean URL, custom ones include self-verifying token
-    const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(referenceId.toUpperCase());
+    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
+    const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
       ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
@@ -348,7 +350,8 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
     const targetBase = customBaseUrl || fallbackBase;
     const refKey = String(record.referenceId || record.id || '').toUpperCase();
-    const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(refKey);
+    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
+    const isKnownSeed = Boolean(db.getById(refKey)) || knownSeeds.includes(refKey);
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
       ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${compactToken}`

@@ -105,6 +105,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
       ],
       status: 'ACTIVE_VERIFIED'
+    },
+    'GX8888888': {
+      referenceId: 'GX8888888',
+      id: 'GX8888888',
+      regionalNumber: 'SGGA. G7777 26',
+      verificationCode: 'SGGA CORS/2025/4/26/11/07/295-17',
+      transactionId: 'job_gx8888888_test',
+      stationLocation: 'GWCL, DODOWA',
+      clientName: 'NEW TEST OFFICER',
+      region: 'Greater Accra',
+      locality: 'ACCRA',
+      processedPoints: 1,
+      amountPaid: 'GHS 150.00',
+      date: '07 November 2026',
+      surveyorName: 'TESTER',
+      beacons: [
+        { beaconIndex: 'SGGA CORS/2025/4', x: '100', y: '200' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    'GX8967032': {
+      referenceId: 'GX8967032',
+      id: 'GX8967032',
+      regionalNumber: 'SGGA.G9999/2026',
+      verificationCode: 'SGGA EX 19 1A/26/11/06/576-68',
+      transactionId: 'job_gx8967032_auth',
+      stationLocation: 'GWCL, DODOWA',
+      clientName: 'KWAME ASANTE',
+      region: 'Greater Accra',
+      locality: 'ACCRA CENTRAL',
+      processedPoints: 1,
+      amountPaid: 'GHS 150.00',
+      date: '06 November 2026',
+      surveyorName: 'JOHN DOE',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    'GX9991111': {
+      referenceId: 'GX9991111',
+      id: 'GX9991111',
+      regionalNumber: 'SGGA.G1111/2026',
+      verificationCode: 'SGGA EX 19 1A/26/11/06/100-10',
+      transactionId: 'job_gx9991111_auth',
+      stationLocation: 'GWCL, DODOWA',
+      clientName: 'TEST CLIENT COLD START',
+      region: 'Greater Accra',
+      locality: 'TEMA',
+      processedPoints: 1,
+      amountPaid: 'GHS 150.00',
+      date: '06 November 2026',
+      surveyorName: 'COLD START SURVEYOR',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '100', y: '200' }
+      ],
+      status: 'ACTIVE_VERIFIED'
     }
   };
 
@@ -195,8 +252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           processedPoints: parseInt(p[7] || '4', 10),
           beacons: [{
             beaconIndex: p[10] || 'SGGA CORS/2025/4',
-            x: parts[8] || '434768.62',
-            y: parts[9] || '1230591.872'
+            x: p[8] || '434768.62',
+            y: p[9] || '1230591.872'
           }],
           amountPaid: p[12] || 'GHS 150.00',
           region: p[13] || 'Greater Accra',

@@ -418,7 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentRec = getCurrentFormData();
     const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
     const refId = (currentRec.referenceId || '').trim();
-    const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(refId.toUpperCase());
+    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
+    const isKnownSeed = knownSeeds.includes(refId.toUpperCase());
     const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
     
     const targetUrl = compactToken
@@ -821,7 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
       await executeAutoSave();
       const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
       const refId = (currentRec.referenceId || '').trim();
-      const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(refId.toUpperCase());
+      const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
+    const isKnownSeed = knownSeeds.includes(refId.toUpperCase());
       const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
       const verifyUrl = compactToken
         ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
