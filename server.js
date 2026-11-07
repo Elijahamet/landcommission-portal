@@ -35,27 +35,33 @@ const LOCAL_IP = getLocalIpAddress();
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper to encode stateless compact record payload for QR codes
-function encodeStatelessToken(rec) {
+function buildCompactToken(rec) {
   try {
-    const compact = {
-      ref: rec.referenceId,
-      client: rec.clientName,
-      reg: rec.regionalNumber,
-      vcode: rec.verificationCode,
-      loc: rec.locality,
-      region: rec.region,
-      pts: rec.processedPoints,
-      amt: rec.amountPaid,
-      date: rec.date,
-      surv: rec.surveyorName,
-      smd: rec.smdOfficerName || '',
-      tx: rec.transactionId,
-      b: rec.beacons
-    };
-    return Buffer.from(JSON.stringify(compact)).toString('base64url');
+    const b0 = (rec.beacons && rec.beacons[0]) || {};
+    const parts = [
+      rec.clientName || '',
+      rec.regionalNumber || '',
+      rec.verificationCode || '',
+      rec.locality || '',
+      rec.stationLocation || 'GWCL, DODOWA',
+      rec.date || '03 November 2026',
+      rec.surveyorName || '',
+      String(rec.processedPoints || 4),
+      String(b0.x || '434768.62'),
+      String(b0.y || '1230591.872'),
+      b0.beaconIndex || 'SGGA CORS/2025/4',
+      rec.referenceId || rec.id || '',
+      rec.amountPaid || 'GHS 150.00',
+      rec.region || 'Greater Accra'
+    ];
+    return Buffer.from(parts.join('|')).toString('base64url');
   } catch (e) {
     return '';
   }
+}
+
+function encodeStatelessToken(rec) {
+  return buildCompactToken(rec);
 }
 
 // Network info endpoint
@@ -162,7 +168,7 @@ app.post('/api/records', async (req, res) => {
       referenceId: referenceId,
       verificationCode: (body.verificationCode || '').trim() || autoVCode,
       transactionId: (body.transactionId || '').trim() || autoTxId,
-      stationLocation: (body.stationLocation || '').trim() || 'SMD-EXAMINATION, ACCRA',
+      stationLocation: (body.stationLocation || '').trim() || 'GWCL, DODOWA',
       clientName: (body.clientName || '').trim(),
       regionalNumber: (body.regionalNumber || '').trim(),
       region: (body.region || 'Greater Accra').trim(),
@@ -177,8 +183,11 @@ app.post('/api/records', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    // Clean short verification URL ensures large, bold, chunky QR code blocks for instant scanning
-    const verificationUrl = `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+    // Compact token guarantees verification page displays immediately even across stateless serverless instances
+    const compactToken = buildCompactToken(record);
+    const verificationUrl = compactToken
+      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
+      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -236,8 +245,11 @@ app.post('/api/generate-pdf', async (req, res) => {
     const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
-    // Clean verification URL for large scannable QR code
-    const verificationUrl = `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+    // Clean verification URL with compact token to guarantee instant scanning & zero record-not-found
+    const compactToken = buildCompactToken(record);
+    const verificationUrl = compactToken
+      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
+      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -312,7 +324,10 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
     const targetBase = customBaseUrl || fallbackBase;
-    const verificationUrl = `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
+    const compactToken = buildCompactToken(record);
+    const verificationUrl = compactToken
+      ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${compactToken}`
+      : `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
     const refIdClean = (record.referenceId || record.id || 'EX_DATA').replace(/[^a-zA-Z0-9_-]/g, '_');

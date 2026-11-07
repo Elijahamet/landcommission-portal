@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const localityInput = document.getElementById('locality');
   const amountInput = document.getElementById('amountPaid');
   const surveyorInput = document.getElementById('surveyorName');
+  const stationLocationInput = document.getElementById('stationLocation');
   const smdOfficerInput = document.getElementById('smdOfficerName');
   const baseUrlInput = document.getElementById('baseUrlInput');
   const beaconsBody = document.getElementById('beaconsEditorBody');
@@ -80,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clientName: 'ALBERT WALE & AKUA SEKYERAA APPIAH',
     region: 'Greater Accra',
     locality: 'MIOTSO-PRAMPRAM',
+    stationLocation: 'GWCL, DODOWA',
     amountPaid: 'GHS 150.00',
     surveyorName: 'AISSI KÉVINOS',
     smdOfficerName: '',
@@ -125,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
       locality: (localityInput.value || '').trim(),
       amountPaid: (amountInput.value || 'GHS 150.00').trim(),
       surveyorName: (surveyorInput.value || '').trim(),
+      stationLocation: (stationLocationInput ? stationLocationInput.value : '').trim() || 'GWCL, DODOWA',
       smdOfficerName: (smdOfficerInput.value || '').trim(),
       beacons: JSON.parse(JSON.stringify(currentBeacons)),
       baseUrl: (baseUrlInput.value || '').trim(),
@@ -238,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localityInput.value = '';
     amountInput.value = 'GHS 150.00';
     surveyorInput.value = '';
+    if (stationLocationInput) stationLocationInput.value = 'GWCL, DODOWA';
     smdOfficerInput.value = '';
 
     currentBeacons = [
@@ -264,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localityInput.value = data.locality || '';
     amountInput.value = data.amountPaid || 'GHS 150.00';
     surveyorInput.value = data.surveyorName || '';
+    if (stationLocationInput) stationLocationInput.value = data.stationLocation || 'GWCL, DODOWA';
     smdOfficerInput.value = data.smdOfficerName || '';
 
     currentBeacons = data.beacons && data.beacons.length > 0 
@@ -379,21 +384,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 200);
   }
 
-  // Update QR Code image source with clean, short URL for large, bold, chunky blocks
+  // Encode compact pipe-delimited token so verification page renders 100% reliably even on cold serverless instances
+  function buildCompactToken(r) {
+    try {
+      const b0 = (r.beacons && r.beacons[0]) || {};
+      const parts = [
+        r.clientName || '',
+        r.regionalNumber || '',
+        r.verificationCode || '',
+        r.locality || '',
+        r.stationLocation || 'GWCL, DODOWA',
+        r.date || '03 November 2026',
+        r.surveyorName || '',
+        String(r.processedPoints || 4),
+        String(b0.x || '434768.62'),
+        String(b0.y || '1230591.872'),
+        b0.beaconIndex || 'SGGA CORS/2025/4',
+        r.referenceId || r.id || '',
+        r.amountPaid || 'GHS 150.00',
+        r.region || 'Greater Accra'
+      ];
+      return window.btoa(unescape(encodeURIComponent(parts.join('|'))))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Update QR Code image source with compact token for instant scanning and zero record-not-found
   function updateQrCode() {
     const currentRec = getCurrentFormData();
     const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
     const refId = currentRec.referenceId;
+    const compactToken = buildCompactToken(currentRec);
     
-    // Clean, short URL ensures huge chunky square blocks for instant smartphone camera scanning
-    const targetUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
-    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=250`;
+    const targetUrl = compactToken
+      ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
+      : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=300`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
       img.src = qrSrc;
     });
 
-    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=340`;
+    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=360`;
     if (modalQrUrlText) modalQrUrlText.textContent = targetUrl;
   }
 
