@@ -518,26 +518,7 @@ body {
 }
 
 .slip-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   margin-bottom: 2px; /* No gap between EX DATA and table */
-}
-
-.slip-header-left {
-  flex: 1;
-}
-
-.slip-header-right {
-  flex-shrink: 0;
-  margin-left: 12px;
-}
-
-.slip-logo-img {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
-  display: block;
 }
 
 .doc-title-main {
@@ -650,8 +631,8 @@ body {
 }
 
 .doc-qr-img {
-  width: 76px;
-  height: 76px;
+  width: 96px;
+  height: 96px;
   image-rendering: pixelated;
 }
 

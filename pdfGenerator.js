@@ -55,17 +55,6 @@ async function generateSlipPDF(record, verificationUrl) {
       function renderSlip(startY) {
         let y = startY;
 
-        // Render Official Lands Commission logo on top right of slip
-        const logoSize = 44;
-        const logoX = leftMargin + contentWidth - logoSize;
-        if (logoBuffer) {
-          try {
-            doc.image(logoBuffer, logoX, y - 2, { width: logoSize, height: logoSize });
-          } catch (imgErr) {
-            console.warn('PDF logo render warning:', imgErr.message);
-          }
-        }
-
         // 1. Header
         doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000')
           .text('LANDS COMMISSION', leftMargin, y, { characterSpacing: 0.5 });
@@ -185,12 +174,11 @@ async function generateSlipPDF(record, verificationUrl) {
 
         y += 15;
 
-        // 5. Centered QR Code
-        const qrSize = 54;
+        // 5. Centered QR Code (Big, bold, and high-contrast for instant smartphone scanning)
+        const qrSize = 72;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         doc.image(qrBuffer, qrX, y, { width: qrSize, height: qrSize });
-        y += qrSize + 10;
-        y += qrSize + 10;
+        y += qrSize + 8;
 
         // 6. Authorization
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')

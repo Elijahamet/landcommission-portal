@@ -1,15 +1,15 @@
 // Lands Commission EX DATA Front-End Logic
 document.addEventListener('DOMContentLoaded', () => {
-  // Storage Keys for 100% Persistence across Vercel Restarts
+  // Storage Keys for 100% Persistent Local Vault (supports 1000+ documents)
   const STORAGE_KEYS = {
-    ACTIVE_DRAFT: 'landscommission_active_draft_v2',
-    SAVED_RECORDS: 'landscommission_saved_records_v2'
+    ACTIVE_DRAFT: 'landscommission_active_draft_v3',
+    SAVED_RECORDS: 'landscommission_saved_records_v3'
   };
 
   // State
   let networkInfo = { localIp: '127.0.0.1', port: 5000, lanUrl: 'http://localhost:5000' };
   let currentBeacons = [
-    { beaconIndex: 'SGGA EX 19 1A', x: '', y: '' }
+    { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
   ];
   let allRecords = [];
 
@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnUseWifiIp = document.getElementById('btnUseWifiIp');
   const btnUseLocalhost = document.getElementById('btnUseLocalhost');
   const tunnelStatusBadge = document.getElementById('tunnelStatusBadge');
+  const btnSaveNewRecord = document.getElementById('btnSaveNewRecord');
   const btnSaveRecord = document.getElementById('btnSaveRecord');
   const btnDownloadPdf = document.getElementById('btnDownloadPdf');
   const btnPrintSlip = document.getElementById('btnPrintSlip');
@@ -50,13 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const autoSaveIndicator = document.getElementById('autoSaveIndicator');
   const autoSaveText = document.getElementById('autoSaveText');
 
-  // Modals
+  // Modals & Archive Elements
   const btnOpenRecords = document.getElementById('btnOpenRecords');
   const btnCloseRecords = document.getElementById('btnCloseRecords');
   const recordsModal = document.getElementById('recordsModal');
   const recordsListContainer = document.getElementById('recordsListContainer');
   const recordSearchInput = document.getElementById('recordSearchInput');
   const recordsCountBadge = document.getElementById('recordsCount');
+  const archiveCountPill = document.getElementById('archiveCountPill');
+  const btnExportRecords = document.getElementById('btnExportRecords');
+  const importBackupInput = document.getElementById('importBackupInput');
+  const btnImportRecordsTrigger = document.getElementById('btnImportRecordsTrigger');
 
   const btnOpenQrModal = document.getElementById('btnOpenQrModal');
   const btnCloseQrModal = document.getElementById('btnCloseQrModal');
@@ -65,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalQrUrlText = document.getElementById('modalQrUrlText');
   const modalIpDisplay = document.getElementById('modalIpDisplay');
 
-  // Sample data for quick testing matching official document (Image 1)
+  // Sample data matching official document (Image 1)
   const SAMPLE_DATA = {
     referenceId: 'GX7109723',
     regionalNumber: 'SGGA. G5098 26',
@@ -90,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper to generate a unique Verification Code
   function generateVerificationCode(beaconIdx) {
-    const b = beaconIdx || (currentBeacons[0] && currentBeacons[0].beaconIndex) || 'SGGA EX 19 1A';
+    const b = beaconIdx || (currentBeacons[0] && currentBeacons[0].beaconIndex) || 'SGGA CORS/2025/4';
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -103,31 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Format today's date
   function getTodayString() {
     return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
-
-  // Helper to encode stateless compact record payload for resilient QR codes
-  function encodeStatelessToken(rec) {
-    try {
-      const compact = {
-        ref: rec.referenceId,
-        client: rec.clientName,
-        reg: rec.regionalNumber,
-        vcode: rec.verificationCode,
-        loc: rec.locality,
-        region: rec.region,
-        pts: rec.processedPoints,
-        amt: rec.amountPaid,
-        date: rec.date,
-        surv: rec.surveyorName,
-        smd: rec.smdOfficerName || '',
-        tx: rec.transactionId,
-        b: rec.beacons
-      };
-      const jsonStr = unescape(encodeURIComponent(JSON.stringify(compact)));
-      return btoa(jsonStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    } catch (e) {
-      return '';
-    }
   }
 
   // Helper to collect current form values into a clean record object
@@ -246,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Initialize a Brand New Clean Record
   function initCleanNewPerson() {
     const newRefId = generateUniqueRefId();
-    const defaultBeacon = 'SGGA EX 19 1A';
+    const defaultBeacon = 'SGGA CORS/2025/4';
     
     refIdInput.value = newRefId;
     regionalNoInput.value = '';
@@ -266,7 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderBeaconsEditor();
     updateLivePreview();
-    // Clear active draft from local storage when explicitly starting a new record
     try {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_DRAFT);
     } catch (e) {}
@@ -289,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentBeacons = data.beacons && data.beacons.length > 0 
       ? JSON.parse(JSON.stringify(data.beacons))
-      : [{ beaconIndex: 'SGGA EX 19 1A', x: '', y: '' }];
+      : [{ beaconIndex: 'SGGA CORS/2025/4', x: '', y: '' }];
 
     renderBeaconsEditor();
     updateLivePreview();
@@ -302,9 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
     currentBeacons.forEach((b, index) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input type="text" class="beacon-index-input" data-index="${index}" value="${escapeHtml(b.beaconIndex || '')}" placeholder="e.g. SGGA EX 19 1A"></td>
-        <td><input type="text" class="beacon-x-input" data-index="${index}" value="${escapeHtml(String(b.x || ''))}" placeholder="e.g. 333460.15"></td>
-        <td><input type="text" class="beacon-y-input" data-index="${index}" value="${escapeHtml(String(b.y || ''))}" placeholder="e.g. 1199651.081"></td>
+        <td><input type="text" class="beacon-index-input" data-index="${index}" value="${escapeHtml(b.beaconIndex || '')}" placeholder="e.g. SGGA CORS/2025/4"></td>
+        <td><input type="text" class="beacon-x-input" data-index="${index}" value="${escapeHtml(String(b.x || ''))}" placeholder="e.g. 434768.62"></td>
+        <td><input type="text" class="beacon-y-input" data-index="${index}" value="${escapeHtml(String(b.y || ''))}" placeholder="e.g. 1230591.872"></td>
         <td style="text-align: center;">
           ${currentBeacons.length > 1 ? `<button type="button" class="btn-remove-row" data-index="${index}" title="Remove point">&times;</button>` : ''}
         </td>
@@ -342,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnAddBeacon.addEventListener('click', () => {
     const nextNum = currentBeacons.length + 1;
     currentBeacons.push({
-      beaconIndex: `SGGA EX 19 ${nextNum}A`,
+      beaconIndex: `SGGA CORS/2025/${nextNum}`,
       x: '',
       y: ''
     });
@@ -385,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentBeacons.forEach(b => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${escapeHtml(b.beaconIndex || 'SGGA EX 19 1A')}</td>
+          <td>${escapeHtml(b.beaconIndex || 'SGGA CORS/2025/4')}</td>
           <td>${escapeHtml(String(b.x || '-'))}</td>
           <td>${escapeHtml(String(b.y || '-'))}</td>
         `;
@@ -400,25 +379,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 200);
   }
 
-  // Update QR Code image source with stateless self-contained token
+  // Update QR Code image source with clean, short URL for large, bold, chunky blocks
   function updateQrCode() {
     const currentRec = getCurrentFormData();
     const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
     const refId = currentRec.referenceId;
-    const token = encodeStatelessToken(currentRec);
     
-    // Always include token so verification is 100% resilient on Vercel serverless!
-    const targetUrl = token
-      ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${token}`
-      : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
-      
-    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=180`;
+    // Clean, short URL ensures huge chunky square blocks for instant smartphone camera scanning
+    const targetUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=250`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
       img.src = qrSrc;
     });
 
-    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=300`;
+    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=340`;
     if (modalQrUrlText) modalQrUrlText.textContent = targetUrl;
   }
 
@@ -495,12 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
   btnNewRecord.addEventListener('click', () => {
     initCleanNewPerson();
     clientNameInput.focus();
-    showToast('New clean form ready. A unique QR code has been generated!');
+    showToast('New clean form ready with fresh unique Reference ID!');
   });
 
   // =========================================================================
-  // AUTOMATIC RECORD PERSISTENCE ENGINE (LOCALSTORAGE + SERVER SYNC)
-  // Ensures records NEVER disappear even across Vercel serverless cold starts
+  // PERSISTENCE ENGINE (LOCALSTORAGE VAULT + SERVER SYNC)
+  // Supports unlimited (1000+) recorded documents
   // =========================================================================
 
   let autoSaveTimer = null;
@@ -516,14 +491,14 @@ document.addEventListener('DOMContentLoaded', () => {
   async function executeAutoSave() {
     const currentRec = getCurrentFormData();
 
-    // 1. Always save active working draft into localStorage
+    // Save active working draft into localStorage
     try {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_DRAFT, JSON.stringify(currentRec));
     } catch (e) {}
 
-    // 2. If clientName is partially filled, also commit to persistent saved registry
+    // If clientName is filled, also commit to persistent saved registry
     if (currentRec.clientName && currentRec.clientName.trim().length > 1) {
-      saveRecordToLocalStorage(currentRec);
+      saveRecordToLocalStorage(currentRec, false);
       // Background sync to server API
       try {
         await fetch('/api/records', {
@@ -531,9 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(currentRec)
         });
-      } catch (e) {
-        // Silent server sync fallback; localStorage keeps it 100% safe
-      }
+      } catch (e) {}
       refreshRecordsBadge();
     }
   }
@@ -547,18 +520,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function saveRecordToLocalStorage(rec) {
+  // Save record to local vault. If forceNew is true, it guarantees a brand new entry!
+  function saveRecordToLocalStorage(rec, forceNew = false) {
     try {
       let records = getLocalRecords();
       const cleanRef = String(rec.referenceId || rec.id).trim().toLowerCase();
       const existingIdx = records.findIndex(r => String(r.referenceId || r.id).trim().toLowerCase() === cleanRef);
-      if (existingIdx >= 0) {
-        records[existingIdx] = { ...records[existingIdx], ...rec, updatedAt: new Date().toISOString() };
-      } else {
+
+      if (forceNew || existingIdx < 0) {
+        // If forceNew and refId already taken, assign a fresh new Reference ID
+        if (existingIdx >= 0 && forceNew) {
+          rec.referenceId = generateUniqueRefId();
+          rec.id = rec.referenceId;
+          refIdInput.value = rec.referenceId;
+          updateLivePreview();
+        }
         records.unshift({ ...rec, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      } else {
+        // Update existing record
+        records[existingIdx] = { ...records[existingIdx], ...rec, updatedAt: new Date().toISOString() };
       }
+
       localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(records));
-    } catch (e) {}
+      return rec;
+    } catch (e) {
+      return rec;
+    }
   }
 
   function deleteRecordFromLocalStorage(id) {
@@ -574,38 +561,103 @@ document.addEventListener('DOMContentLoaded', () => {
     const local = getLocalRecords();
     const count = Math.max(local.length, allRecords.length);
     if (recordsCountBadge) recordsCountBadge.textContent = count;
+    if (archiveCountPill) archiveCountPill.textContent = `${count} Documents`;
   }
 
-  // 5. Explicit Save Button
+  // 5A. Save as Brand New Record (Guarantees infinite/1000+ entries without overwriting!)
+  if (btnSaveNewRecord) {
+    btnSaveNewRecord.addEventListener('click', async () => {
+      if (!clientNameInput.value.trim()) {
+        showToast('Please enter Client Name before saving', 'error');
+        clientNameInput.focus();
+        return;
+      }
+
+      try {
+        btnSaveNewRecord.disabled = true;
+        btnSaveNewRecord.textContent = 'Saving...';
+        
+        let currentRec = getCurrentFormData();
+        
+        // Check if referenceId is already taken by an existing document in registry
+        const local = getLocalRecords();
+        const isTaken = local.some(r => String(r.referenceId || r.id).trim().toLowerCase() === currentRec.referenceId.toLowerCase());
+        if (isTaken) {
+          // Auto-generate fresh unique Reference ID for the new document
+          currentRec.referenceId = generateUniqueRefId();
+          currentRec.id = currentRec.referenceId;
+          refIdInput.value = currentRec.referenceId;
+          updateLivePreview();
+        }
+
+        const savedRec = saveRecordToLocalStorage(currentRec, true);
+
+        // Sync with server API
+        try {
+          await fetch('/api/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(savedRec)
+          });
+          // Bulk sync full vault
+          await syncFullVaultWithServer();
+        } catch (serverErr) {}
+
+        await fetchRecordsList();
+        showToast(`✓ New Document Saved as "${savedRec.referenceId}" for ${savedRec.clientName}! Total: ${allRecords.length}`, 'success');
+      } catch (e) {
+        showToast('Error saving: ' + e.message, 'error');
+      } finally {
+        btnSaveNewRecord.disabled = false;
+        btnSaveNewRecord.textContent = '💾 Save New Document';
+        setAutoSaveStatus('ready', '✓ Saved');
+      }
+    });
+  }
+
+  // 5B. Update Currently Loaded Document
   btnSaveRecord.addEventListener('click', async () => {
     if (!clientNameInput.value.trim()) {
-      showToast('Please enter the Client Name before saving', 'error');
+      showToast('Please enter Client Name before updating', 'error');
       clientNameInput.focus();
       return;
     }
 
     try {
       btnSaveRecord.disabled = true;
-      btnSaveRecord.textContent = 'Saving...';
+      btnSaveRecord.textContent = 'Updating...';
       const currentRec = getCurrentFormData();
-      saveRecordToLocalStorage(currentRec);
+      saveRecordToLocalStorage(currentRec, false);
 
       const res = await fetch('/api/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentRec)
       });
-      const data = await res.json();
-      fetchRecordsList();
-      showToast(`✓ Record for "${currentRec.clientName}" saved! Verification QR is active.`, 'success');
+      await syncFullVaultWithServer();
+      await fetchRecordsList();
+      showToast(`✓ Updated record "${currentRec.referenceId}" for ${currentRec.clientName}!`, 'success');
     } catch (e) {
-      showToast(`✓ Saved to local registry (Server sync: ${e.message})`, 'info');
+      showToast(`✓ Updated locally (Server sync: ${e.message})`, 'info');
     } finally {
       btnSaveRecord.disabled = false;
-      btnSaveRecord.textContent = '💾 Save & Update Record';
-      setAutoSaveStatus('ready', '✓ Saved');
+      btnSaveRecord.textContent = '✏️ Update';
+      setAutoSaveStatus('ready', '✓ Updated');
     }
   });
+
+  // Sync full local vault to server so all 1000+ documents are backed up on server
+  async function syncFullVaultWithServer() {
+    const local = getLocalRecords();
+    if (!local || local.length === 0) return;
+    try {
+      await fetch('/api/records/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(local)
+      });
+    } catch (e) {}
+  }
 
   // 6. Download PDF (100% Reliable via Direct POST and Client-Side Fallback)
   async function downloadPdf() {
@@ -621,12 +673,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       btn.disabled = true;
       btn.innerHTML = '⏳ Generating PDF...';
-      showToast('Preparing official vector PDF with scannable QR...', 'info');
+      showToast('Generating official PDF with large scannable QR...', 'info');
 
-      // 1. Ensure latest record data is auto-saved
+      // Auto-save record
       await executeAutoSave();
 
-      // 2. Request PDF directly with full record payload (guarantees serverless cold start resilience)
+      // Request PDF directly with full record payload
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -694,10 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await executeAutoSave();
       const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
       const refId = currentRec.referenceId;
-      const token = encodeStatelessToken(currentRec);
-      const verifyUrl = token
-        ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${token}`
-        : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
       window.open(verifyUrl, '_blank');
     } catch (e) {
       showToast('Error opening verification: ' + e.message, 'error');
@@ -714,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     qrAssistantModal.classList.remove('active');
   });
 
-  // 10. Saved Records History Modal
+  // 10. Saved Records & PDFs Archive Modal
   btnOpenRecords.addEventListener('click', () => {
     fetchRecordsList();
     recordsModal.classList.add('active');
@@ -752,7 +801,6 @@ document.addEventListener('DOMContentLoaded', () => {
     localRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
       if (key) {
-        // If local record is newer or not in server, keep local
         const existing = recordMap.get(key);
         if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
           recordMap.set(key, r);
@@ -763,14 +811,25 @@ document.addEventListener('DOMContentLoaded', () => {
     allRecords = Array.from(recordMap.values());
     allRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
-    if (recordsCountBadge) recordsCountBadge.textContent = allRecords.length;
+    // Save unified merged list to localStorage
+    try {
+      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(allRecords));
+    } catch (e) {}
+
+    refreshRecordsBadge();
     renderRecordsList(allRecords);
   }
 
   function renderRecordsList(records) {
     recordsListContainer.innerHTML = '';
     if (records.length === 0) {
-      recordsListContainer.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px;">No saved records yet. Fill the form to create your first official EX DATA record.</p>';
+      recordsListContainer.innerHTML = `
+        <div style="text-align: center; color: #94a3b8; padding: 40px 20px;">
+          <div style="font-size: 2.5rem; margin-bottom: 8px;">📂</div>
+          <p style="font-weight: 600; font-size: 1rem; color: #475569;">No saved documents in archive yet</p>
+          <p style="font-size: 0.85rem;">Fill out the form and click "💾 Save New Document" to store your records here.</p>
+        </div>
+      `;
       return;
     }
 
@@ -778,22 +837,73 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('div');
       item.className = 'record-item';
       const refId = escapeHtml(r.referenceId || r.id);
-      const token = encodeStatelessToken(r);
-      const tokParam = token ? `?d=${encodeURIComponent(token)}` : '';
       item.innerHTML = `
-        <div class="record-meta">
-          <h4>${refId} - ${escapeHtml(r.clientName || 'Unnamed')}</h4>
-          <p>📍 ${escapeHtml(r.locality || 'Locality unassigned')}, ${escapeHtml(r.region || '')} • 📅 ${escapeHtml(r.date || '')}</p>
+        <div class="record-meta" style="flex: 1; min-width: 200px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="background: #1e3a8a; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">${refId}</span>
+            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${escapeHtml(r.clientName || 'Unnamed Client')}</h4>
+          </div>
+          <p style="margin: 0; font-size: 0.8rem; color: #64748b;">
+            📍 <strong>${escapeHtml(r.locality || 'Locality unassigned')}</strong>, ${escapeHtml(r.region || '')} • 
+            📅 ${escapeHtml(r.date || '')} • 
+            💰 ${escapeHtml(r.amountPaid || 'GHS 150.00')} • 
+            📐 ${escapeHtml(r.surveyorName || 'N/A')}
+          </p>
         </div>
-        <div class="record-actions">
-          <button class="btn btn-secondary btn-sm btn-load-record" data-id="${refId}">Load</button>
-          <a href="/api/records/${refId}/pdf${tokParam}" class="btn btn-primary btn-sm" download="${refId}.pdf">PDF</a>
-          <button class="btn btn-secondary btn-sm btn-delete-record" data-id="${refId}" style="color:#ef4444;">Delete</button>
+        <div class="record-actions" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-sm btn-download-pdf-row" data-id="${refId}" title="Download Official A4 PDF">
+            📥 PDF
+          </button>
+          <button class="btn btn-secondary btn-sm btn-load-record" data-id="${refId}" title="Open in Live Preview & Editor">
+            👁️ View
+          </button>
+          <a href="/verify/${refId}" target="_blank" class="btn btn-secondary btn-sm" title="Open Verification Gateway" style="text-decoration: none;">
+            📱 Verify
+          </a>
+          <button class="btn btn-secondary btn-sm btn-delete-record" data-id="${refId}" style="color: #ef4444;" title="Delete this record">
+            🗑️
+          </button>
         </div>
       `;
       recordsListContainer.appendChild(item);
     });
 
+    // Row: Download PDF handler
+    recordsListContainer.querySelectorAll('.btn-download-pdf-row').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        const rec = allRecords.find(r => r.id === id || r.referenceId === id);
+        if (!rec) return;
+
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        try {
+          const res = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rec)
+          });
+          if (!res.ok) throw new Error('PDF generation error');
+          const blob = await res.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `${rec.referenceId || id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(blobUrl);
+          showToast(`✓ Downloaded ${rec.referenceId}.pdf`, 'success');
+        } catch (err) {
+          showToast('Could not download PDF: ' + err.message, 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '📥 PDF';
+        }
+      });
+    });
+
+    // Row: Load into form handler
     recordsListContainer.querySelectorAll('.btn-load-record').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.target.dataset.id;
@@ -801,27 +911,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rec) {
           loadData(rec);
           recordsModal.classList.remove('active');
-          showToast(`Loaded record for ${rec.clientName}`);
+          showToast(`Loaded record for ${rec.clientName} (${rec.referenceId})`);
         }
       });
     });
 
+    // Row: Delete handler
     recordsListContainer.querySelectorAll('.btn-delete-record').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        if (confirm(`Delete record ${id}?`)) {
+        if (confirm(`Are you sure you want to delete record ${id}?`)) {
           deleteRecordFromLocalStorage(id);
           try {
             await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
           } catch (err) {}
-          fetchRecordsList();
+          await fetchRecordsList();
           showToast(`Record ${id} deleted`);
         }
       });
     });
   }
 
-  // Filter records in modal
+  // Filter records in archive
   recordSearchInput.addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase().trim();
     if (!q) {
@@ -832,10 +943,72 @@ document.addEventListener('DOMContentLoaded', () => {
       (r.referenceId && r.referenceId.toLowerCase().includes(q)) ||
       (r.clientName && r.clientName.toLowerCase().includes(q)) ||
       (r.locality && r.locality.toLowerCase().includes(q)) ||
+      (r.regionalNumber && r.regionalNumber.toLowerCase().includes(q)) ||
+      (r.date && r.date.toLowerCase().includes(q)) ||
+      (r.surveyorName && r.surveyorName.toLowerCase().includes(q)) ||
       (r.verificationCode && r.verificationCode.toLowerCase().includes(q))
     );
     renderRecordsList(filtered);
   });
+
+  // Backup Export: Download all records as JSON file
+  if (btnExportRecords) {
+    btnExportRecords.addEventListener('click', () => {
+      const records = getLocalRecords();
+      if (!records || records.length === 0) {
+        showToast('No records to export yet', 'info');
+        return;
+      }
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(records, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute('href', dataStr);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      dlAnchor.setAttribute('download', `landscommission_records_backup_${dateStr}.json`);
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      dlAnchor.remove();
+      showToast(`Exported ${records.length} records to backup file!`, 'success');
+    });
+  }
+
+  // Backup Import: Upload JSON file and merge into registry
+  if (btnImportRecordsTrigger && importBackupInput) {
+    btnImportRecordsTrigger.addEventListener('click', () => {
+      importBackupInput.click();
+    });
+
+    importBackupInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) {
+            let local = getLocalRecords();
+            const map = new Map();
+            local.forEach(r => map.set(String(r.referenceId || r.id).trim().toLowerCase(), r));
+            imported.forEach(r => {
+              if (r.referenceId || r.id) {
+                map.set(String(r.referenceId || r.id).trim().toLowerCase(), r);
+              }
+            });
+            const merged = Array.from(map.values());
+            localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(merged));
+            await syncFullVaultWithServer();
+            await fetchRecordsList();
+            showToast(`✓ Successfully imported ${imported.length} records!`, 'success');
+          } else {
+            showToast('Invalid backup file format (expected array of records)', 'error');
+          }
+        } catch (err) {
+          showToast('Failed to parse backup file: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+      importBackupInput.value = '';
+    });
+  }
 
   // Toast notification helper
   function showToast(message, type = 'info') {
@@ -863,8 +1036,13 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  // INITIAL BOOT: Restore active draft from localStorage if available, or create fresh
-  initNetwork().then(() => {
+  // INITIAL BOOT: Sync with server, restore active draft if available, or create fresh
+  initNetwork().then(async () => {
+    // 1. Sync local vault with server immediately on startup
+    await syncFullVaultWithServer();
+    await fetchRecordsList();
+
+    // 2. Restore active working draft if exists
     try {
       const savedDraftRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT);
       if (savedDraftRaw) {
@@ -881,7 +1059,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       initCleanNewPerson();
     }
-    fetchRecordsList();
   });
 
 });

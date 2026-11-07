@@ -103,6 +103,33 @@ const db = {
     );
     writeRecords(filtered);
     return filtered.length < records.length;
+  },
+
+  syncMany(incomingRecords) {
+    if (!Array.isArray(incomingRecords)) return readRecords();
+    const records = readRecords();
+    const map = new Map();
+
+    // Index existing records
+    records.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) map.set(key, r);
+    });
+
+    // Merge incoming records
+    incomingRecords.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (!key) return;
+      const existing = map.get(key);
+      if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
+        map.set(key, { ...existing, ...r });
+      }
+    });
+
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    writeRecords(merged);
+    return merged;
   }
 };
 

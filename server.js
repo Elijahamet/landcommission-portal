@@ -85,9 +85,36 @@ app.get('/api/network-info', (req, res) => {
 app.get('/api/records', (req, res) => {
   try {
     const records = db.getAll();
-    res.json({ success: true, records });
+    res.json({ success: true, count: records.length, records });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Bulk sync endpoint for persistent multi-device storage (supports 1000+ documents)
+app.post('/api/records/sync', (req, res) => {
+  try {
+    const list = Array.isArray(req.body) ? req.body : (req.body && req.body.records ? req.body.records : []);
+    const merged = db.syncMany(list);
+    res.json({ success: true, count: merged.length, records: merged });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List archived PDFs
+app.get('/api/saved-pdfs', (req, res) => {
+  try {
+    const pdfDir = isVercel 
+      ? path.join(os.tmpdir(), 'saved_pdfs') 
+      : path.join(__dirname, 'saved_pdfs');
+    let files = [];
+    if (fs.existsSync(pdfDir)) {
+      files = fs.readdirSync(pdfDir).filter(f => f.toLowerCase().endsWith('.pdf'));
+    }
+    res.json({ success: true, files });
+  } catch (err) {
+    res.json({ success: true, files: [] });
   }
 });
 
@@ -150,11 +177,8 @@ app.post('/api/records', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    // Embed stateless token so verification is 100% resilient on serverless
-    const token = encodeStatelessToken(record);
-    const verificationUrl = token
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${token}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+    // Clean short verification URL ensures large, bold, chunky QR code blocks for instant scanning
+    const verificationUrl = `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -212,10 +236,8 @@ app.post('/api/generate-pdf', async (req, res) => {
     const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
-    const token = encodeStatelessToken(record);
-    const verificationUrl = token
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${token}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+    // Clean verification URL for large scannable QR code
+    const verificationUrl = `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -289,11 +311,8 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const publicUrl = autoOrigin || getPublicUrl();
     const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
-    const token = encodeStatelessToken(record);
     const targetBase = customBaseUrl || fallbackBase;
-    const verificationUrl = token
-      ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${token}`
-      : `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
+    const verificationUrl = `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
     const refIdClean = (record.referenceId || record.id || 'EX_DATA').replace(/[^a-zA-Z0-9_-]/g, '_');

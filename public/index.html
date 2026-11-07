@@ -28,8 +28,8 @@
         <div class="network-dot"></div>
         <span id="netStatusText">Detecting Network...</span>
       </div>
-      <button class="btn btn-secondary btn-sm" id="btnOpenRecords">
-        📁 Saved Records (<span id="recordsCount">0</span>)
+      <button class="btn btn-secondary btn-sm" id="btnOpenRecords" style="font-weight: 700;">
+        📁 All Saved Documents & PDFs (<span id="recordsCount">0</span>)
       </button>
       <button class="btn btn-secondary btn-sm" id="btnOpenQrModal">
         📱 Scan Assistant
@@ -219,9 +219,14 @@
 
       <!-- Editor Action Footer -->
       <div class="editor-footer">
-        <button type="button" class="btn btn-success" id="btnSaveRecord" style="width: 100%;">
-          💾 Save & Update Record
-        </button>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button type="button" class="btn btn-success" id="btnSaveNewRecord" style="flex: 1.2; font-weight: 700;" title="Save as a brand new document in registry">
+            💾 Save New Document
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnSaveRecord" style="flex: 0.8;" title="Update currently loaded document">
+            ✏️ Update
+          </button>
+        </div>
         <div class="btn-action-group">
           <button type="button" class="btn btn-primary" id="btnDownloadPdf">
             📥 Download PDF
@@ -262,14 +267,9 @@
           <section class="slip-half" id="slipOfficial">
             <!-- Header -->
             <div class="slip-header">
-              <div class="slip-header-left">
-                <div class="doc-title-main">LANDS COMMISSION</div>
-                <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
-                <div class="doc-title-type">EX DATA</div>
-              </div>
-              <div class="slip-header-right">
-                <img src="/logo.png" alt="Lands Commission Logo" class="slip-logo-img">
-              </div>
+              <div class="doc-title-main">LANDS COMMISSION</div>
+              <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
+              <div class="doc-title-type">EX DATA</div>
             </div>
 
             <!-- Beacons Table -->
@@ -378,14 +378,9 @@
           <section class="slip-half" id="slipClient">
             <!-- Header -->
             <div class="slip-header">
-              <div class="slip-header-left">
-                <div class="doc-title-main">LANDS COMMISSION</div>
-                <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
-                <div class="doc-title-type">EX DATA</div>
-              </div>
-              <div class="slip-header-right">
-                <img src="/logo.png" alt="Lands Commission Logo" class="slip-logo-img">
-              </div>
+              <div class="doc-title-main">LANDS COMMISSION</div>
+              <div class="doc-title-sub">SURVEY AND MAPPING DIVISION</div>
+              <div class="doc-title-type">EX DATA</div>
             </div>
 
             <!-- Beacons Table -->
@@ -489,16 +484,28 @@
 
   </div>
 
-  <!-- Modal: Saved Records History -->
+  <!-- Modal: All Saved Documents & PDFs Archive -->
   <div class="modal-overlay" id="recordsModal">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
       <div class="modal-header">
-        <h3>📁 Saved EX DATA Records</h3>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h3 style="margin: 0;">📁 All Saved EX DATA Documents & PDFs Archive</h3>
+          <span class="live-pill" id="archiveCountPill" style="font-size: 0.75rem; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">0 Documents</span>
+        </div>
         <button class="modal-close" id="btnCloseRecords">&times;</button>
       </div>
       <div class="modal-body">
-        <input type="text" id="recordSearchInput" class="form-control" placeholder="Search by Reference ID, Client Name, or Locality..." style="margin-bottom: 14px;">
-        <div class="records-list" id="recordsListContainer">
+        <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+          <input type="text" id="recordSearchInput" class="form-control" placeholder="Search by Client Name, Reference ID, Locality, Date, Surveyor..." style="flex: 1; min-width: 240px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnExportRecords" title="Export full registry backup as JSON file">
+            📥 Export Backup (JSON)
+          </button>
+          <input type="file" id="importBackupInput" accept=".json" style="display: none;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnImportRecordsTrigger" title="Import records from JSON file">
+            📤 Import Backup
+          </button>
+        </div>
+        <div class="records-list" id="recordsListContainer" style="max-height: 480px; overflow-y: auto;">
           <!-- Injected via JS -->
         </div>
       </div>
