@@ -622,7 +622,7 @@ body {
   word-break: break-all;
 }
 
-/* Center QR Code Container (Matching 48pt compact size in official sample) */
+/* Center QR Code Container (Enlarged to 68pt / 86px for instant phone scanning) */
 .doc-qr-container {
   display: flex;
   justify-content: center;
@@ -631,9 +631,11 @@ body {
 }
 
 .doc-qr-img {
-  width: 64px;
-  height: 64px;
+  width: 86px;
+  height: 86px;
+  image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 /* Thin horizontal line divider below QR code (Matching official sample) */

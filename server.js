@@ -215,10 +215,10 @@ app.get('/api/qr', async (req, res) => {
     const publicUrl = getPublicUrl();
     const defaultHost = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const text = req.query.text || defaultHost;
-    const size = parseInt(req.query.size || '200', 10);
+    const size = parseInt(req.query.size || '360', 10);
     const pngBuffer = await QRCode.toBuffer(text, {
       type: 'png',
-      width: size,
+      width: Math.max(size, 400),
       margin: 1,
       errorCorrectionLevel: 'M'
     });
