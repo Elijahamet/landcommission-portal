@@ -659,68 +659,106 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // 6. Download PDF (100% Reliable via Direct POST and Client-Side Fallback)
+  // 6. Universal PDF Download Function (Server vector PDF with instant browser HTML2PDF fallback)
+  async function downloadPdfForRecord(rec, triggeringBtn = null) {
+    if (!rec) return;
+    const originalContent = triggeringBtn ? triggeringBtn.innerHTML : null;
+    if (triggeringBtn) {
+      triggeringBtn.disabled = true;
+      triggeringBtn.innerHTML = '⏳ Generating...';
+    }
+
+    try {
+      let downloaded = false;
+
+      // Step 1: Server-side high quality vector PDF
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 7000);
+        const res = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rec),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const blob = await res.blob();
+          if (blob && blob.size > 1000) {
+            triggerBlobDownload(blob, `${rec.referenceId || rec.id || 'EX_DATA'}.pdf`);
+            downloaded = true;
+            showToast(`✓ PDF downloaded (${rec.referenceId}.pdf)`, 'success');
+          }
+        }
+      } catch (srvErr) {
+        console.warn('Server PDF generation failed or timed out:', srvErr.message);
+      }
+
+      if (downloaded) return;
+
+      // Step 2: High-res client-side fallback using html2pdf
+      showToast('Generating official PDF in browser...', 'info');
+      const activeDraft = getCurrentFormData();
+      loadData(rec);
+      // Wait for QR code image and DOM to settle
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      const element = document.getElementById('printableA4Document');
+      const opt = {
+        margin: 0,
+        filename: `${rec.referenceId || rec.id || 'EX_DATA'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      if (window.html2pdf) {
+        await window.html2pdf().set(opt).from(element).save();
+        showToast(`✓ PDF downloaded (${rec.referenceId}.pdf)`, 'success');
+      } else {
+        window.print();
+      }
+
+      // Restore previously edited draft if it was different
+      if (activeDraft && activeDraft.referenceId !== rec.referenceId) {
+        setTimeout(() => loadData(activeDraft), 600);
+      }
+    } catch (err) {
+      console.error('Download PDF error:', err);
+      showToast('Could not download PDF: ' + err.message, 'error');
+    } finally {
+      if (triggeringBtn) {
+        triggeringBtn.disabled = false;
+        triggeringBtn.innerHTML = originalContent || '📥 PDF';
+      }
+    }
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1200);
+  }
+
+  // 6b. Download PDF from Form / Toolbar
   async function downloadPdf() {
-    const currentRec = getCurrentFormData();
-    if (!currentRec.clientName) {
-      showToast('Please enter Client Name before downloading PDF', 'error');
+    if (!clientNameInput.value.trim()) {
+      showToast('Please enter Client Name before generating PDF', 'error');
       clientNameInput.focus();
       return;
     }
 
-    const btn = btnDownloadPdf;
-    const originalText = btn.innerHTML;
-    try {
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Generating PDF...';
-      showToast('Generating official PDF with large scannable QR...', 'info');
-
-      // Auto-save record
-      await executeAutoSave();
-
-      // Request PDF directly with full record payload
-      const res = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentRec)
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server returned HTTP ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `${currentRec.referenceId || 'EX_DATA'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-
-      showToast(`✓ PDF downloaded as "${currentRec.referenceId}.pdf"!`, 'success');
-    } catch (err) {
-      console.warn('Server PDF error, triggering high-res client renderer:', err);
-      try {
-        showToast('Rendering high-res PDF in browser...', 'info');
-        const element = document.getElementById('printableA4Document');
-        const opt = {
-          margin: 0,
-          filename: `${currentRec.referenceId || 'EX_DATA'}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        await html2pdf().set(opt).from(element).save();
-        showToast(`✓ PDF downloaded as "${currentRec.referenceId}.pdf"!`, 'success');
-      } catch (fallbackErr) {
-        showToast('Download error: ' + fallbackErr.message, 'error');
-      }
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
+    const currentRec = getCurrentFormData();
+    await executeAutoSave();
+    await downloadPdfForRecord(currentRec, btnDownloadPdf);
   }
 
   btnDownloadPdf.addEventListener('click', downloadPdf);
@@ -871,35 +909,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Row: Download PDF handler
     recordsListContainer.querySelectorAll('.btn-download-pdf-row').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
+        const btnEl = e.currentTarget;
+        const id = btnEl.dataset.id;
         const rec = allRecords.find(r => r.id === id || r.referenceId === id);
         if (!rec) return;
 
-        btn.disabled = true;
-        btn.textContent = '⏳';
-        try {
-          const res = await fetch('/api/generate-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(rec)
-          });
-          if (!res.ok) throw new Error('PDF generation error');
-          const blob = await res.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = `${rec.referenceId || id}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(blobUrl);
-          showToast(`✓ Downloaded ${rec.referenceId}.pdf`, 'success');
-        } catch (err) {
-          showToast('Could not download PDF: ' + err.message, 'error');
-        } finally {
-          btn.disabled = false;
-          btn.textContent = '📥 PDF';
-        }
+        await downloadPdfForRecord(rec, btnEl);
       });
     });
 

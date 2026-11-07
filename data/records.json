@@ -49,6 +49,9 @@
     ],
     "status": "ACTIVE_VERIFIED",
     "createdAt": "2026-11-03T10:15:00.000Z",
-    "updatedAt": "2026-11-03T10:15:00.000Z"
+    "updatedAt": "2026-11-07T11:12:25.224Z",
+    "verificationUrl": "http://localhost:5123/verify/GX2193345",
+    "pdfFile": "GX2193345.pdf",
+    "pdfSavedAt": "2026-11-07T11:12:25.223Z"
   }
 ]
