@@ -622,18 +622,26 @@ body {
   word-break: break-all;
 }
 
-/* Center QR Code Container */
+/* Center QR Code Container (Matching 48pt compact size in official sample) */
 .doc-qr-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 8px 0 12px 0;
+  margin: 6px 0 6px 0;
 }
 
 .doc-qr-img {
-  width: 96px;
-  height: 96px;
+  width: 64px;
+  height: 64px;
   image-rendering: pixelated;
+}
+
+/* Thin horizontal line divider below QR code (Matching official sample) */
+.doc-qr-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #dddddd;
+  margin: 5px 0 9px 0;
 }
 
 /* Authorization Block */

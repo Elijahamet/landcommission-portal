@@ -413,12 +413,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Update QR Code image source with compact token for instant scanning and zero record-not-found
+  // Update QR Code image source (known records use clean short URL matching sample, custom ones use compact token)
   function updateQrCode() {
     const currentRec = getCurrentFormData();
     const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-    const refId = currentRec.referenceId;
-    const compactToken = buildCompactToken(currentRec);
+    const refId = (currentRec.referenceId || '').trim();
+    const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(refId.toUpperCase());
+    const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
     
     const targetUrl = compactToken
       ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
@@ -819,8 +820,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const currentRec = getCurrentFormData();
       await executeAutoSave();
       const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-      const refId = currentRec.referenceId;
-      const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      const refId = (currentRec.referenceId || '').trim();
+      const isKnownSeed = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255'].includes(refId.toUpperCase());
+      const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
+      const verifyUrl = compactToken
+        ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
+        : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
       window.open(verifyUrl, '_blank');
     } catch (e) {
       showToast('Error opening verification: ' + e.message, 'error');

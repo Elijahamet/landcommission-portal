@@ -2,11 +2,24 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// Statically bundle records so Vercel @vercel/nft bundler ALWAYS includes all official documents
+let bundledRecords = [];
+try {
+  bundledRecords = require('./data/records.json');
+} catch (e) {
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, 'data', 'records.json'), 'utf-8');
+    bundledRecords = JSON.parse(raw);
+  } catch (e2) {
+    bundledRecords = [];
+  }
+}
+
 const isVercel = Boolean(process.env.VERCEL);
 const DATA_DIR = isVercel ? path.join(os.tmpdir(), 'data') : path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'records.json');
 
-let inMemoryRecords = [];
+let inMemoryRecords = Array.isArray(bundledRecords) ? [...bundledRecords] : [];
 
 // Ensure data folder exists
 try {
@@ -18,18 +31,34 @@ try {
 function initDb() {
   try {
     if (!fs.existsSync(DB_FILE)) {
-      const seedFile = path.join(__dirname, 'data', 'records.json');
-      if (fs.existsSync(seedFile)) {
-        const content = fs.readFileSync(seedFile, 'utf-8');
-        fs.writeFileSync(DB_FILE, content, 'utf-8');
-        inMemoryRecords = JSON.parse(content);
-      } else {
-        fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2), 'utf-8');
-      }
+      fs.writeFileSync(DB_FILE, JSON.stringify(bundledRecords, null, 2), 'utf-8');
+      inMemoryRecords = Array.isArray(bundledRecords) ? [...bundledRecords] : [];
     }
   } catch (err) {
     // Graceful fallback to memory on restricted environments
   }
+}
+
+function mergeWithBundled(records) {
+  const map = new Map();
+  // First load bundled official records
+  if (Array.isArray(bundledRecords)) {
+    bundledRecords.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) map.set(key, r);
+    });
+  }
+  // Then overlay or add runtime records
+  if (Array.isArray(records)) {
+    records.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) {
+        const existing = map.get(key);
+        map.set(key, { ...(existing || {}), ...r });
+      }
+    });
+  }
+  return Array.from(map.values());
 }
 
 function readRecords() {
@@ -38,19 +67,20 @@ function readRecords() {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
-      inMemoryRecords = parsed;
-      return parsed;
+      inMemoryRecords = mergeWithBundled(parsed);
+      return inMemoryRecords;
     }
   } catch (err) {
     console.warn('Read records file warning, using memory:', err.message);
   }
+  inMemoryRecords = mergeWithBundled(inMemoryRecords);
   return inMemoryRecords;
 }
 
 function writeRecords(records) {
-  inMemoryRecords = records;
+  inMemoryRecords = mergeWithBundled(records);
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(records, null, 2), 'utf-8');
+    fs.writeFileSync(DB_FILE, JSON.stringify(inMemoryRecords, null, 2), 'utf-8');
   } catch (err) {
     console.warn('Write records file warning (persisted in memory):', err.message);
   }
@@ -63,12 +93,19 @@ const db = {
 
   getById(id) {
     if (!id) return null;
-    const records = readRecords();
     const cleanId = String(id).trim().toLowerCase();
-    return records.find(r => 
+    const records = readRecords();
+    let found = records.find(r => 
       String(r.id || '').toLowerCase() === cleanId || 
       String(r.referenceId || '').toLowerCase() === cleanId
-    ) || null;
+    );
+    if (!found && Array.isArray(bundledRecords)) {
+      found = bundledRecords.find(r => 
+        String(r.id || '').toLowerCase() === cleanId || 
+        String(r.referenceId || '').toLowerCase() === cleanId
+      );
+    }
+    return found || null;
   },
 
   save(record) {

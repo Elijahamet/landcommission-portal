@@ -49,12 +49,12 @@ async function generateSlipPDF(record, verificationUrl) {
       doc.on('data', b => buffers.push(b));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      // Generate QR Code buffer with Level L (maximum chunkiness and instant scanning speed)
+      // Generate QR Code buffer with Level L (maximum chunkiness and instant scanning speed matching official sample)
       const qrTarget = verificationUrl || record.verificationUrl || `https://landcommission-portal.vercel.app/verify/${record.id || record.referenceId}`;
       const qrBuffer = await QRCode.toBuffer(qrTarget, {
         errorCorrectionLevel: 'L',
         margin: 1,
-        width: 340,
+        width: 160,
         color: {
           dark: '#000000',
           light: '#ffffff'
@@ -189,11 +189,18 @@ async function generateSlipPDF(record, verificationUrl) {
 
         y += 15;
 
-        // 5. Centered QR Code (Big, bold, and high-contrast for instant smartphone scanning)
-        const qrSize = 80;
+        // 5. Centered QR Code (matching official sample: 48 pt compact, chunky blocks, centered)
+        const qrSize = 48;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         doc.image(qrBuffer, qrX, y, { width: qrSize, height: qrSize });
-        y += qrSize + 8;
+        y += qrSize + 6;
+
+        // Thin horizontal separator line right under QR code (exact match to official sample)
+        doc.save();
+        doc.strokeColor('#dddddd').lineWidth(0.5);
+        doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
+        doc.restore();
+        y += 10;
 
         // 6. Authorization
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')

@@ -2,10 +2,10 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "includeFiles": "node_modules/pdfkit/**"
+      "includeFiles": "{node_modules/pdfkit/**,data/**,*.json}"
     },
     "api/*.js": {
-      "includeFiles": "node_modules/pdfkit/**"
+      "includeFiles": "{node_modules/pdfkit/**,data/**,*.json}"
     }
   },
   "rewrites": [
@@ -23,4 +23,3 @@
     }
   ]
 }
-
