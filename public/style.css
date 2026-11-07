@@ -334,6 +334,12 @@ body {
   border-color: var(--gov-blue);
 }
 
+.coord-input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+}
+
 .btn-remove-row {
   background: none;
   border: none;

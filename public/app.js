@@ -112,20 +112,104 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
+  // Calculate amount based on processed points: 150Ghc (4 points base) + 20 per additional point
+  function calculateAmountForPoints(points) {
+    const pts = Math.max(4, parseInt(points, 10) || 4);
+    return 150 + Math.max(0, pts - 4) * 20;
+  }
+
+  function updateAmountFromPoints() {
+    let pts = parseInt(pointsInput.value, 10);
+    if (isNaN(pts) || pts < 4) {
+      pts = 4;
+    }
+    const amt = calculateAmountForPoints(pts);
+    amountInput.value = `GHS ${amt.toFixed(2)}`;
+
+    const calcHint = document.getElementById('amountCalcHint');
+    if (calcHint) {
+      if (pts === 4) {
+        calcHint.textContent = '150 Ghc (4 points base)';
+      } else {
+        const extra = pts - 4;
+        calcHint.textContent = `150 Ghc + ${extra} × 20 Ghc = GHS ${amt.toFixed(2)}`;
+      }
+    }
+  }
+
+  // Validate beacon coordinates: If coordinates of beacon index have not been entered, display error and don't save document
+  function validateBeaconCoordinates(options = { showUiErrors: true }) {
+    const errorNotice = document.getElementById('beaconCoordErrorNotice');
+    if (errorNotice) errorNotice.style.display = 'none';
+    document.querySelectorAll('.coord-input-error').forEach(el => el.classList.remove('coord-input-error'));
+
+    if (!currentBeacons || currentBeacons.length === 0) {
+      if (options.showUiErrors) {
+        showToast('Please add at least one beacon point with coordinates before saving.', 'error');
+        if (errorNotice) {
+          errorNotice.textContent = '⚠️ Please add at least one beacon point with X and Y coordinates before saving.';
+          errorNotice.style.display = 'block';
+        }
+      }
+      return false;
+    }
+
+    for (let i = 0; i < currentBeacons.length; i++) {
+      const b = currentBeacons[i];
+      const bName = (b.beaconIndex || `Point #${i + 1}`).trim();
+      const xVal = (b.x !== undefined && b.x !== null) ? String(b.x).trim() : '';
+      const yVal = (b.y !== undefined && b.y !== null) ? String(b.y).trim() : '';
+
+      const xInput = document.querySelector(`.beacon-x-input[data-index="${i}"]`);
+      const yInput = document.querySelector(`.beacon-y-input[data-index="${i}"]`);
+
+      if (!xVal || !yVal) {
+        if (options.showUiErrors) {
+          if (!xVal && xInput) xInput.classList.add('coord-input-error');
+          if (!yVal && yInput) yInput.classList.add('coord-input-error');
+
+          let msg = '';
+          if (!xVal && !yVal) {
+            msg = `Coordinates for beacon index "${bName}" have not been entered.`;
+          } else if (!xVal) {
+            msg = `X coordinate (Easting) for beacon index "${bName}" is missing.`;
+          } else {
+            msg = `Y coordinate (Northing) for beacon index "${bName}" is missing.`;
+          }
+
+          showToast(msg, 'error');
+          if (errorNotice) {
+            errorNotice.textContent = `⚠️ ${msg} Enter coordinates before saving.`;
+            errorNotice.style.display = 'block';
+          }
+
+          if (!xVal && xInput) xInput.focus();
+          else if (!yVal && yInput) yInput.focus();
+        }
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   // Helper to collect current form values into a clean record object
   function getCurrentFormData() {
     const refId = (refIdInput.value || '').trim() || generateUniqueRefId();
+    let pts = parseInt(pointsInput.value, 10);
+    if (isNaN(pts) || pts < 4) pts = 4;
+    const calcAmt = `GHS ${calculateAmountForPoints(pts).toFixed(2)}`;
     return {
       id: refId,
       referenceId: refId,
       regionalNumber: (regionalNoInput.value || '').trim(),
       verificationCode: (vCodeInput.value || '').trim(),
       date: (dateInput.value || '').trim() || getTodayString(),
-      processedPoints: parseInt(pointsInput.value, 10) || currentBeacons.length,
+      processedPoints: pts,
       clientName: (clientNameInput.value || '').trim(),
       region: regionSelect.value || 'Greater Accra',
       locality: (localityInput.value || '').trim(),
-      amountPaid: (amountInput.value || 'GHS 150.00').trim(),
+      amountPaid: (amountInput.value || '').trim() || calcAmt,
       surveyorName: (surveyorInput.value || '').trim(),
       stationLocation: (stationLocationInput ? stationLocationInput.value : '').trim() || 'GWCL, DODOWA',
       smdOfficerName: (smdOfficerInput.value || '').trim(),
@@ -235,11 +319,11 @@ document.addEventListener('DOMContentLoaded', () => {
     regionalNoInput.value = '';
     vCodeInput.value = generateVerificationCode(defaultBeacon);
     dateInput.value = getTodayString();
-    pointsInput.value = '1';
+    pointsInput.value = '4';
     clientNameInput.value = '';
     regionSelect.value = 'Greater Accra';
     localityInput.value = '';
-    amountInput.value = 'GHS 150.00';
+    updateAmountFromPoints();
     surveyorInput.value = '';
     if (stationLocationInput) stationLocationInput.value = 'GWCL, DODOWA';
     smdOfficerInput.value = '';
@@ -262,11 +346,20 @@ document.addEventListener('DOMContentLoaded', () => {
     regionalNoInput.value = data.regionalNumber || '';
     vCodeInput.value = data.verificationCode || generateVerificationCode(data.beacons && data.beacons[0] ? data.beacons[0].beaconIndex : '');
     dateInput.value = data.date || getTodayString();
-    pointsInput.value = data.processedPoints || (data.beacons ? data.beacons.length : 1);
+    
+    // Process points must be from 4 upward
+    const pts = Math.max(4, parseInt(data.processedPoints, 10) || (data.beacons ? data.beacons.length : 4));
+    pointsInput.value = pts;
+    
     clientNameInput.value = data.clientName || '';
     regionSelect.value = data.region || 'Greater Accra';
     localityInput.value = data.locality || '';
-    amountInput.value = data.amountPaid || 'GHS 150.00';
+    
+    updateAmountFromPoints();
+    if (data.amountPaid && data.amountPaid !== 'GHS 150.00') {
+      amountInput.value = data.amountPaid;
+    }
+
     surveyorInput.value = data.surveyorName || '';
     if (stationLocationInput) stationLocationInput.value = data.stationLocation || 'GWCL, DODOWA';
     smdOfficerInput.value = data.smdOfficerName || '';
@@ -287,8 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><input type="text" class="beacon-index-input" data-index="${index}" value="${escapeHtml(b.beaconIndex || '')}" placeholder="e.g. SGGA CORS/2025/4"></td>
-        <td><input type="text" class="beacon-x-input" data-index="${index}" value="${escapeHtml(String(b.x || ''))}" placeholder="e.g. 434768.62"></td>
-        <td><input type="text" class="beacon-y-input" data-index="${index}" value="${escapeHtml(String(b.y || ''))}" placeholder="e.g. 1230591.872"></td>
+        <td><input type="text" class="beacon-x-input" data-index="${index}" value="${escapeHtml(String(b.x || ''))}" placeholder="e.g. 434768.62" required></td>
+        <td><input type="text" class="beacon-y-input" data-index="${index}" value="${escapeHtml(String(b.y || ''))}" placeholder="e.g. 1230591.872" required></td>
         <td style="text-align: center;">
           ${currentBeacons.length > 1 ? `<button type="button" class="btn-remove-row" data-index="${index}" title="Remove point">&times;</button>` : ''}
         </td>
@@ -296,12 +389,20 @@ document.addEventListener('DOMContentLoaded', () => {
       beaconsBody.appendChild(tr);
     });
 
-    pointsInput.value = currentBeacons.length;
+    // Process points must be from 4 upward and at least currentBeacons.length
+    const currentPts = parseInt(pointsInput.value, 10) || 4;
+    const finalPts = Math.max(4, currentBeacons.length, currentPts);
+    pointsInput.value = finalPts;
+    updateAmountFromPoints();
 
     // Row input events
     beaconsBody.querySelectorAll('input').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = parseInt(e.target.dataset.index, 10);
+        e.target.classList.remove('coord-input-error');
+        const errNotice = document.getElementById('beaconCoordErrorNotice');
+        if (errNotice) errNotice.style.display = 'none';
+
         if (e.target.classList.contains('beacon-index-input')) currentBeacons[idx].beaconIndex = e.target.value;
         if (e.target.classList.contains('beacon-x-input')) currentBeacons[idx].x = e.target.value;
         if (e.target.classList.contains('beacon-y-input')) currentBeacons[idx].y = e.target.value;
@@ -331,6 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
       y: ''
     });
     renderBeaconsEditor();
+    if (currentBeacons.length > parseInt(pointsInput.value, 10)) {
+      pointsInput.value = currentBeacons.length;
+      updateAmountFromPoints();
+    }
     updateLivePreview();
     triggerAutoSave();
   });
@@ -498,6 +603,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Process points input events: from 4 upward, automatically calculates amount
+  pointsInput.addEventListener('input', () => {
+    const raw = parseInt(pointsInput.value, 10);
+    if (!isNaN(raw) && raw >= 4) {
+      updateAmountFromPoints();
+      updateLivePreview();
+      triggerAutoSave();
+    }
+  });
+
+  pointsInput.addEventListener('change', () => {
+    let raw = parseInt(pointsInput.value, 10);
+    if (isNaN(raw) || raw < 4) {
+      pointsInput.value = 4;
+      showToast('Processed points must be from 4 upward (set to minimum 4)', 'info');
+    }
+    updateAmountFromPoints();
+    updateLivePreview();
+    triggerAutoSave();
+  });
+
+  pointsInput.addEventListener('blur', () => {
+    let raw = parseInt(pointsInput.value, 10);
+    if (isNaN(raw) || raw < 4) {
+      pointsInput.value = 4;
+    }
+    updateAmountFromPoints();
+    updateLivePreview();
+    triggerAutoSave();
+  });
+
   // Load sample button
   btnLoadSample.addEventListener('click', () => {
     loadData(SAMPLE_DATA);
@@ -534,8 +670,9 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_DRAFT, JSON.stringify(currentRec));
     } catch (e) {}
 
-    // If clientName is filled, also commit to persistent saved registry
-    if (currentRec.clientName && currentRec.clientName.trim().length > 1) {
+    // Only commit to persistent saved registry and server if both clientName AND beacon coordinates are entered!
+    const coordsValid = validateBeaconCoordinates({ showUiErrors: false });
+    if (currentRec.clientName && currentRec.clientName.trim().length > 1 && coordsValid) {
       saveRecordToLocalStorage(currentRec, false);
       // Background sync to server API
       try {
@@ -611,6 +748,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // 1. If coordinates of beacon index have not been entered, display error and don't save document
+      if (!validateBeaconCoordinates({ showUiErrors: true })) {
+        return; // Don't save document!
+      }
+
+      // 2. Process points should be from 4 upward
+      let pts = parseInt(pointsInput.value, 10);
+      if (isNaN(pts) || pts < 4) {
+        pointsInput.value = 4;
+        updateAmountFromPoints();
+      }
+
       try {
         btnSaveNewRecord.disabled = true;
         btnSaveNewRecord.textContent = 'Saving...';
@@ -659,6 +808,18 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Please enter Client Name before updating', 'error');
       clientNameInput.focus();
       return;
+    }
+
+    // 1. If coordinates of beacon index have not been entered, display error and don't save document
+    if (!validateBeaconCoordinates({ showUiErrors: true })) {
+      return; // Don't save document!
+    }
+
+    // 2. Process points should be from 4 upward
+    let pts = parseInt(pointsInput.value, 10);
+    if (isNaN(pts) || pts < 4) {
+      pointsInput.value = 4;
+      updateAmountFromPoints();
     }
 
     try {
@@ -794,6 +955,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Coordinates of beacon index must be entered
+    if (!validateBeaconCoordinates({ showUiErrors: true })) {
+      return;
+    }
+
     const currentRec = getCurrentFormData();
     await executeAutoSave();
     await downloadPdfForRecord(currentRec, btnDownloadPdf);
@@ -804,6 +970,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 7. Print Slip
   async function printSlip() {
+    // Coordinates of beacon index must be entered
+    if (!validateBeaconCoordinates({ showUiErrors: true })) {
+      return;
+    }
+
     if (clientNameInput.value.trim()) {
       try {
         await executeAutoSave();

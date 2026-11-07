@@ -163,6 +163,37 @@ app.post('/api/records', async (req, res) => {
     const autoVCode = `${beaconIdx}/${yy}/${mm}/${dd}/${Math.floor(100 + Math.random() * 900)}-${Math.floor(10 + Math.random() * 90)}`;
     const autoTxId = `job_${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
 
+    // 1. Validation: If coordinates of beacon index have not been entered, display error and don't save document
+    const beacons = Array.isArray(body.beacons) ? body.beacons : [];
+    if (beacons.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Coordinates of beacon index must be entered. Please enter X and Y coordinates before saving.'
+      });
+    }
+    for (let i = 0; i < beacons.length; i++) {
+      const b = beacons[i];
+      const xStr = (b.x !== undefined && b.x !== null) ? String(b.x).trim() : '';
+      const yStr = (b.y !== undefined && b.y !== null) ? String(b.y).trim() : '';
+      if (!xStr || !yStr) {
+        const bName = (b.beaconIndex || `Point #${i + 1}`).trim();
+        return res.status(400).json({
+          success: false,
+          error: `Coordinates for beacon index "${bName}" have not been entered. Both X and Y coordinates are required.`
+        });
+      }
+    }
+
+    // 2. Process points should be from 4 upward
+    let processedPoints = parseInt(body.processedPoints, 10);
+    if (isNaN(processedPoints) || processedPoints < 4) {
+      processedPoints = Math.max(4, beacons.length);
+    }
+
+    // Amount calculated automatically from 150Ghc (4points) + 20 per additional points
+    const calculatedAmount = 150 + Math.max(0, processedPoints - 4) * 20;
+    const amountPaid = `GHS ${calculatedAmount.toFixed(2)}`;
+
     const record = {
       id: id,
       referenceId: referenceId,
@@ -173,12 +204,12 @@ app.post('/api/records', async (req, res) => {
       regionalNumber: (body.regionalNumber || '').trim(),
       region: (body.region || 'Greater Accra').trim(),
       locality: (body.locality || '').trim(),
-      processedPoints: body.processedPoints || (body.beacons ? body.beacons.length : 1),
-      amountPaid: (body.amountPaid || 'GHS 150.00').trim(),
+      processedPoints: processedPoints,
+      amountPaid: amountPaid,
       date: (body.date || '').trim(),
       surveyorName: (body.surveyorName || '').trim(),
       smdOfficerName: (body.smdOfficerName || '').trim(),
-      beacons: Array.isArray(body.beacons) ? body.beacons : [],
+      beacons: beacons,
       status: 'ACTIVE_VERIFIED',
       updatedAt: new Date().toISOString()
     };
@@ -260,6 +291,36 @@ app.post('/api/generate-pdf', async (req, res) => {
     const referenceId = (record.referenceId || record.id || `GX${Math.floor(1000000 + Math.random() * 9000000)}`).trim();
     record.referenceId = referenceId;
     record.id = record.id || referenceId;
+
+    // Validation: coordinates of beacon index must be entered
+    const beacons = Array.isArray(record.beacons) ? record.beacons : [];
+    if (beacons.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Coordinates of beacon index must be entered before generating PDF.'
+      });
+    }
+    for (let i = 0; i < beacons.length; i++) {
+      const b = beacons[i];
+      const xStr = (b.x !== undefined && b.x !== null) ? String(b.x).trim() : '';
+      const yStr = (b.y !== undefined && b.y !== null) ? String(b.y).trim() : '';
+      if (!xStr || !yStr) {
+        const bName = (b.beaconIndex || `Point #${i + 1}`).trim();
+        return res.status(400).json({
+          success: false,
+          error: `Coordinates for beacon index "${bName}" have not been entered. Both X and Y coordinates are required.`
+        });
+      }
+    }
+
+    // Process points should be from 4 upward and amount calculated automatically
+    let processedPoints = parseInt(record.processedPoints, 10);
+    if (isNaN(processedPoints) || processedPoints < 4) {
+      processedPoints = Math.max(4, beacons.length);
+    }
+    record.processedPoints = processedPoints;
+    const calculatedAmount = 150 + Math.max(0, processedPoints - 4) * 20;
+    record.amountPaid = `GHS ${calculatedAmount.toFixed(2)}`;
 
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');

@@ -95,8 +95,9 @@
               </div>
 
               <div class="form-group">
-                <label for="processedPoints">PROCESSED POINTS</label>
-                <input type="number" id="processedPoints" class="form-control" placeholder="4" min="1" required>
+                <label for="processedPoints">PROCESSED POINTS <span style="color: #15803d; font-size: 0.72rem; font-weight: normal;">(Min: 4)</span></label>
+                <input type="number" id="processedPoints" class="form-control" placeholder="4" min="4" value="4" required>
+                <small class="hint" style="font-size: 0.72rem; color: #64748b;">4 points upward (GHS 150 base + GHS 20/extra pt)</small>
               </div>
             </div>
           </div>
@@ -145,8 +146,9 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label for="amountPaid">AMOUNT PAID</label>
-                <input type="text" id="amountPaid" class="form-control" placeholder="e.g. GHS 150.00" required>
+                <label for="amountPaid">AMOUNT PAID <span style="color: #15803d; font-size: 0.72rem; font-weight: normal;">(Auto)</span></label>
+                <input type="text" id="amountPaid" class="form-control" placeholder="GHS 150.00" value="GHS 150.00" required readonly style="background: #f8fafc; font-weight: 700; color: #0f172a;">
+                <small class="hint" id="amountCalcHint" style="font-size: 0.72rem; color: #15803d; font-weight: 600;">150 Ghc (4 points base)</small>
               </div>
               <div class="form-group">
                 <label for="surveyorName">SURVEYOR'S NAME</label>
@@ -173,8 +175,8 @@
               <thead>
                 <tr>
                   <th>BEACON INDEX</th>
-                  <th>X (EASTING)</th>
-                  <th>Y (NORTHING)</th>
+                  <th>X (EASTING) <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
+                  <th>Y (NORTHING) <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
                   <th style="width: 32px;"></th>
                 </tr>
               </thead>
@@ -182,6 +184,9 @@
                 <!-- Injected dynamically -->
               </tbody>
             </table>
+            <div id="beaconCoordErrorNotice" style="display: none; margin-top: 6px; padding: 7px 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626; font-size: 0.78rem; font-weight: 600;">
+              ⚠️ Please enter both X and Y coordinates for every beacon index before saving.
+            </div>
           </div>
 
           <!-- Section 4: Authorization Officer -->
