@@ -633,9 +633,11 @@ body {
 .doc-qr-img {
   width: 66px;
   height: 66px;
+  background: #ffffff;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
 }
 
 /* Thin horizontal line divider below QR code (Matching official sample) */

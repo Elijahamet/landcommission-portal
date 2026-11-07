@@ -209,18 +209,39 @@ app.delete('/api/records/:id', (req, res) => {
   }
 });
 
-// QR Code image endpoint
+// QR Code vector/image endpoint (defaults to pure vector SVG with 4-module quiet zone)
 app.get('/api/qr', async (req, res) => {
   try {
     const publicUrl = getPublicUrl();
     const defaultHost = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const text = req.query.text || defaultHost;
+    const format = (req.query.format || 'svg').toLowerCase();
+
+    if (format === 'svg') {
+      const svgString = await QRCode.toString(text, {
+        type: 'svg',
+        margin: 4,
+        errorCorrectionLevel: 'M',
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(svgString);
+    }
+
     const size = parseInt(req.query.size || '360', 10);
     const pngBuffer = await QRCode.toBuffer(text, {
       type: 'png',
       width: Math.max(size, 400),
-      margin: 1,
-      errorCorrectionLevel: 'M'
+      margin: 4,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
     });
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');

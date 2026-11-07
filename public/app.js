@@ -424,13 +424,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetUrl = compactToken
       ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
       : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
-    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=300`;
+    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
       img.src = qrSrc;
     });
 
-    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&size=360`;
+    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
     if (modalQrUrlText) modalQrUrlText.textContent = targetUrl;
   }
 

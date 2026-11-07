@@ -35,33 +35,43 @@ if (!logoBuffer) {
   } catch (e) {}
 }
 
-// Function to draw 100% pure vector QR code with mathematically sharp edges and zero pixelation
+// Function to draw 100% pure vector QR code with 4-module quiet zone, sharp edges, and zero pixelation
 function drawVectorQRCode(doc, targetUrl, x, y, size) {
   const qr = QRCode.create(targetUrl, {
-    errorCorrectionLevel: 'M',
-    margin: 0
+    errorCorrectionLevel: 'M'
   });
 
-  const count = qr.modules.size;
-  const modSize = size / count;
+  const quietZone = 4; // Exactly 4 modules of white quiet zone on all sides
+  const coreCount = qr.modules.size;
+  const totalCount = coreCount + quietZone * 2;
+  const modSize = size / totalCount;
 
   doc.save();
+
+  // 1. Pure white (#FFFFFF) background quiet zone box
+  doc.rect(x, y, size, size).fill('#ffffff');
+
+  // 2. Pure black (#000000) square modules with razor-sharp vector geometry
   doc.fillColor('#000000');
 
-  // Draw horizontal runs as single solid vector rectangles
-  for (let r = 0; r < count; r++) {
+  for (let r = 0; r < coreCount; r++) {
     let startCol = -1;
-    for (let c = 0; c <= count; c++) {
-      const isDark = c < count ? qr.modules.get(r, c) : 0;
+    for (let c = 0; c <= coreCount; c++) {
+      const isDark = c < coreCount ? qr.modules.get(r, c) : 0;
       if (isDark && startCol === -1) {
         startCol = c;
       } else if (!isDark && startCol !== -1) {
         const span = c - startCol;
-        doc.rect(x + startCol * modSize, y + r * modSize, span * modSize, modSize).fill();
+        const rectX = x + (startCol + quietZone) * modSize;
+        const rectY = y + (r + quietZone) * modSize;
+        const rectW = span * modSize;
+        const rectH = modSize;
+        doc.rect(rectX, rectY, rectW, rectH).fill('#000000');
         startCol = -1;
       }
     }
   }
+
   doc.restore();
 }
 
@@ -210,8 +220,8 @@ async function generateSlipPDF(record, verificationUrl) {
 
         y += 18;
 
-        // 5. Centered Vector QR Code (Compact 50 pt size, 100% razor-sharp vector paths with authentic spacing)
-        const qrSize = 50;
+        // 5. Centered Vector QR Code (52 pt with 4-module quiet zone, 100% razor-sharp vector paths)
+        const qrSize = 52;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
         y += qrSize + 8;
