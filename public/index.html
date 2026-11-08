@@ -159,7 +159,16 @@
             <div class="form-row single">
               <div class="form-group">
                 <label for="stationLocation">STATION LOCATION</label>
-                <input type="text" id="stationLocation" class="form-control" placeholder="e.g. GWCL, DODOWA or SMD-EXAMINATION, ACCRA" value="GWCL, DODOWA" required>
+                <input type="text" id="stationLocation" list="stationLocationsDatalist" class="form-control" placeholder="Select or type station location" value="GWCL, DODOWA" required>
+                <datalist id="stationLocationsDatalist">
+                  <option value="SMD-EXAMINATION, ACCRA"></option>
+                  <option value="KOKROBITE, ACCRA"></option>
+                  <option value="GWCL, DODOWA"></option>
+                  <option value="GWCL, BIG ADA"></option>
+                  <option value="DAWA INDUSTRIAL ENCLAVE"></option>
+                  <option value="LEKMA HOSPITAL MANET ROAD"></option>
+                  <option value="LISAG HOUSE, LABONE"></option>
+                </datalist>
               </div>
             </div>
           </div>
@@ -171,12 +180,35 @@
               <button type="button" class="btn btn-secondary btn-sm" id="btnAddBeaconRow">+ Add Point</button>
             </div>
 
+            <!-- Preloaded CORS Station Quick Selector -->
+            <div class="cors-preset-bar" style="margin-bottom: 10px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;">
+              <label for="selectCorsStation" style="display: block; font-size: 0.76rem; font-weight: 700; color: #166534; margin-bottom: 4px;">
+                ⚡ Preloaded CORS Station Quick Selector:
+              </label>
+              <div style="display: flex; gap: 6px;">
+                <select id="selectCorsStation" class="form-control" style="font-size: 0.8rem; font-weight: 600; color: #0f172a; background: #ffffff; border-color: #86efac;">
+                  <option value="">-- Choose CORS Station to Auto-Load --</option>
+                  <option value="SGGA EX 19 1">SGGA EX 19 1 | EX1A — SMD-EXAMINATION, ACCRA</option>
+                  <option value="SGGA CORS/2025/3">SGGA CORS/2025/3 | SG03 — KOKROBITE, ACCRA</option>
+                  <option value="SGGA CORS/2025/4">SGGA CORS/2025/4 | SG04 — GWCL, DODOWA</option>
+                  <option value="SGGA CORS/2025/5">SGGA CORS/2025/5 | SG05 — GWCL, BIG ADA</option>
+                  <option value="SGGA CORS/2025/6">SGGA CORS/2025/6 | SG06 — DAWA INDUSTRIAL ENCLAVE</option>
+                  <option value="SGGA CORS/2025/7">SGGA CORS/2025/7 | SG07 — LEKMA HOSPITAL MANET ROAD</option>
+                  <option value="LSHQ">LSHQ | LSHQ — LISAG HOUSE, LABONE</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnApplyCorsStation" style="white-space: nowrap; font-weight: 700; background: #dcfce7; color: #15803d; border-color: #86efac;">⚡ Load</button>
+              </div>
+              <small style="display: block; margin-top: 4px; font-size: 0.72rem; color: #15803d;">
+                Loads Beacon Index (CORS ID), Easting & Northing coordinates, and Station Location automatically.
+              </small>
+            </div>
+
             <table class="beacons-editor-table">
               <thead>
                 <tr>
-                  <th>BEACON INDEX</th>
-                  <th>X (EASTING) <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
-                  <th>Y (NORTHING) <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
+                  <th>BEACON INDEX (CORS ID)</th>
+                  <th>X <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
+                  <th>Y <span style="color: #ef4444;" title="Coordinates are required">*</span></th>
                   <th style="width: 32px;"></th>
                 </tr>
               </thead>
@@ -184,6 +216,16 @@
                 <!-- Injected dynamically -->
               </tbody>
             </table>
+            <datalist id="corsStationsDatalist">
+              <option value="SGGA EX 19 1">SMD-EXAMINATION, ACCRA (333460.15, 1199651.081)</option>
+              <option value="SGGA EX 19 1A">SMD-EXAMINATION, ACCRA (333460.15, 1199651.081)</option>
+              <option value="SGGA CORS/2025/3">KOKROBITE, ACCRA (303825.126, 1133357.319)</option>
+              <option value="SGGA CORS/2025/4">GWCL, DODOWA (434768.62, 1230591.872)</option>
+              <option value="SGGA CORS/2025/5">GWCL, BIG ADA (421208.928, 1486533.813)</option>
+              <option value="SGGA CORS/2025/6">DAWA INDUSTRIAL ENCLAVE (431019.659, 1358904.391)</option>
+              <option value="SGGA CORS/2025/7">LEKMA HOSPITAL MANET ROAD (341275.809, 1219526.117)</option>
+              <option value="LSHQ">LISAG HOUSE, LABONE (326433.22, 1203050.817)</option>
+            </datalist>
             <div id="beaconCoordErrorNotice" style="display: none; margin-top: 6px; padding: 7px 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626; font-size: 0.78rem; font-weight: 600;">
               ⚠️ Please enter both X and Y coordinates for every beacon index before saving.
             </div>

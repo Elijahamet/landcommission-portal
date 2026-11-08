@@ -71,6 +71,77 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalQrUrlText = document.getElementById('modalQrUrlText');
   const modalIpDisplay = document.getElementById('modalIpDisplay');
 
+  // Official Preloaded CORS Stations (Greater Accra Region)
+  const PRELOADED_CORS_STATIONS = [
+    {
+      corsId: 'SGGA EX 19 1',
+      aliases: ['SGGA EX 19 1', 'SGGA EX 19 1A', 'EX1A', 'SGGA EX 19'],
+      stationId: 'EX1A',
+      x: '333460.15',
+      y: '1199651.081',
+      location: 'SMD-EXAMINATION, ACCRA'
+    },
+    {
+      corsId: 'SGGA CORS/2025/3',
+      aliases: ['SGGA CORS/2025/3', 'SG03', 'CORS/2025/3'],
+      stationId: 'SG03',
+      x: '303825.126',
+      y: '1133357.319',
+      location: 'KOKROBITE, ACCRA'
+    },
+    {
+      corsId: 'SGGA CORS/2025/4',
+      aliases: ['SGGA CORS/2025/4', 'SG04', 'CORS/2025/4'],
+      stationId: 'SG04',
+      x: '434768.62',
+      y: '1230591.872',
+      location: 'GWCL, DODOWA'
+    },
+    {
+      corsId: 'SGGA CORS/2025/5',
+      aliases: ['SGGA CORS/2025/5', 'SG05', 'CORS/2025/5'],
+      stationId: 'SG05',
+      x: '421208.928',
+      y: '1486533.813',
+      location: 'GWCL, BIG ADA'
+    },
+    {
+      corsId: 'SGGA CORS/2025/6',
+      aliases: ['SGGA CORS/2025/6', 'SG06', 'CORS/2025/6'],
+      stationId: 'SG06',
+      x: '431019.659',
+      y: '1358904.391',
+      location: 'DAWA INDUSTRIAL ENCLAVE'
+    },
+    {
+      corsId: 'SGGA CORS/2025/7',
+      aliases: ['SGGA CORS/2025/7', 'SG07', 'CORS/2025/7'],
+      stationId: 'SG07',
+      x: '341275.809',
+      y: '1219526.117',
+      location: 'LEKMA HOSPITAL MANET ROAD'
+    },
+    {
+      corsId: 'LSHQ',
+      aliases: ['LSHQ'],
+      stationId: 'LSHQ',
+      x: '326433.22',
+      y: '1203050.817',
+      location: 'LISAG HOUSE, LABONE'
+    }
+  ];
+
+  function findCorsStation(query) {
+    if (!query) return null;
+    const q = String(query).trim().toUpperCase();
+    return PRELOADED_CORS_STATIONS.find(s => 
+      s.corsId.toUpperCase() === q ||
+      s.stationId.toUpperCase() === q ||
+      s.location.toUpperCase() === q ||
+      (s.aliases && s.aliases.some(a => a.toUpperCase() === q))
+    ) || null;
+  }
+
   // Sample data matching official document (Image 1)
   const SAMPLE_DATA = {
     referenceId: 'GX7109723',
@@ -329,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     smdOfficerInput.value = '';
 
     currentBeacons = [
-      { beaconIndex: defaultBeacon, x: '', y: '' }
+      { beaconIndex: defaultBeacon, x: '434768.62', y: '1230591.872' }
     ];
 
     renderBeaconsEditor();
@@ -379,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentBeacons.forEach((b, index) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input type="text" class="beacon-index-input" data-index="${index}" value="${escapeHtml(b.beaconIndex || '')}" placeholder="e.g. SGGA CORS/2025/4"></td>
+        <td><input type="text" list="corsStationsDatalist" class="beacon-index-input" data-index="${index}" value="${escapeHtml(b.beaconIndex || '')}" placeholder="Select or type CORS ID"></td>
         <td><input type="text" class="beacon-x-input" data-index="${index}" value="${escapeHtml(String(b.x || ''))}" placeholder="e.g. 434768.62" required></td>
         <td><input type="text" class="beacon-y-input" data-index="${index}" value="${escapeHtml(String(b.y || ''))}" placeholder="e.g. 1230591.872" required></td>
         <td style="text-align: center;">
@@ -403,7 +474,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const errNotice = document.getElementById('beaconCoordErrorNotice');
         if (errNotice) errNotice.style.display = 'none';
 
-        if (e.target.classList.contains('beacon-index-input')) currentBeacons[idx].beaconIndex = e.target.value;
+        if (e.target.classList.contains('beacon-index-input')) {
+          currentBeacons[idx].beaconIndex = e.target.value;
+          
+          // Auto-fill coordinates and station location when matching preloaded station is typed or selected
+          const matchedStation = findCorsStation(e.target.value);
+          if (matchedStation) {
+            currentBeacons[idx].beaconIndex = matchedStation.corsId;
+            currentBeacons[idx].x = matchedStation.x;
+            currentBeacons[idx].y = matchedStation.y;
+
+            const xInput = beaconsBody.querySelector(`.beacon-x-input[data-index="${idx}"]`);
+            const yInput = beaconsBody.querySelector(`.beacon-y-input[data-index="${idx}"]`);
+            if (xInput) {
+              xInput.value = matchedStation.x;
+              xInput.classList.remove('coord-input-error');
+            }
+            if (yInput) {
+              yInput.value = matchedStation.y;
+              yInput.classList.remove('coord-input-error');
+            }
+
+            if (stationLocationInput) {
+              stationLocationInput.value = matchedStation.location;
+            }
+
+            if (idx === 0) {
+              vCodeInput.value = generateVerificationCode(matchedStation.corsId);
+            }
+
+            showToast(`✓ Auto-loaded coordinates & location: ${matchedStation.location}`);
+          }
+        }
         if (e.target.classList.contains('beacon-x-input')) currentBeacons[idx].x = e.target.value;
         if (e.target.classList.contains('beacon-y-input')) currentBeacons[idx].y = e.target.value;
         updateLivePreview();
@@ -646,6 +748,71 @@ document.addEventListener('DOMContentLoaded', () => {
     clientNameInput.focus();
     showToast('New clean form ready with fresh unique Reference ID!');
   });
+
+  // Preloaded CORS Stations Quick Selector (Greater Accra Region)
+  const selectCorsStation = document.getElementById('selectCorsStation');
+  const btnApplyCorsStation = document.getElementById('btnApplyCorsStation');
+
+  function applySelectedStation(val) {
+    const stationId = val || (selectCorsStation ? selectCorsStation.value : '');
+    if (!stationId) return;
+    const station = findCorsStation(stationId);
+    if (!station) return;
+
+    if (!currentBeacons || currentBeacons.length === 0) {
+      currentBeacons = [{ beaconIndex: station.corsId, x: station.x, y: station.y }];
+    } else {
+      let targetIdx = currentBeacons.findIndex(b => !b.x && !b.y);
+      if (targetIdx === -1) targetIdx = 0;
+      currentBeacons[targetIdx].beaconIndex = station.corsId;
+      currentBeacons[targetIdx].x = station.x;
+      currentBeacons[targetIdx].y = station.y;
+    }
+
+    if (stationLocationInput) {
+      stationLocationInput.value = station.location;
+    }
+
+    vCodeInput.value = generateVerificationCode(station.corsId);
+
+    renderBeaconsEditor();
+    updateLivePreview();
+    triggerAutoSave();
+    showToast(`✓ Loaded ${station.corsId}: Northing ${station.x}, Easting ${station.y} (${station.location})`, 'success');
+  }
+
+  if (selectCorsStation) {
+    selectCorsStation.addEventListener('change', () => {
+      applySelectedStation(selectCorsStation.value);
+    });
+  }
+
+  if (btnApplyCorsStation) {
+    btnApplyCorsStation.addEventListener('click', () => {
+      applySelectedStation(selectCorsStation ? selectCorsStation.value : '');
+    });
+  }
+
+  // Auto-link Station Location datalist selection to matching CORS station
+  if (stationLocationInput) {
+    stationLocationInput.addEventListener('change', () => {
+      const locVal = stationLocationInput.value.trim().toUpperCase();
+      const matched = PRELOADED_CORS_STATIONS.find(s => s.location.toUpperCase() === locVal);
+      if (matched && currentBeacons.length > 0) {
+        const b0 = currentBeacons[0];
+        if (!b0.x || !b0.y || PRELOADED_CORS_STATIONS.some(s => s.corsId === b0.beaconIndex)) {
+          b0.beaconIndex = matched.corsId;
+          b0.x = matched.x;
+          b0.y = matched.y;
+          vCodeInput.value = generateVerificationCode(matched.corsId);
+          renderBeaconsEditor();
+          updateLivePreview();
+          triggerAutoSave();
+          showToast(`✓ Auto-loaded ${matched.corsId} for ${matched.location}`);
+        }
+      }
+    });
+  }
 
   // =========================================================================
   // PERSISTENCE ENGINE (LOCALSTORAGE VAULT + SERVER SYNC)
