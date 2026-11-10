@@ -49,25 +49,18 @@ function drawVectorQRCode(doc, targetUrl, x, y, size) {
   doc.save();
 
   // 1. Pure white (#FFFFFF) background quiet zone box
-  doc.rect(x, y, size, size).fill('#ffffff');
+  doc.rect(x, y, size, size).fillColor('#ffffff').fill();
 
   // 2. Pure black (#000000) square modules with razor-sharp vector geometry
+  // Draw each individual module as a distinct, perfectly aligned square (no merging, no overlap)
   doc.fillColor('#000000');
 
   for (let r = 0; r < coreCount; r++) {
-    let startCol = -1;
-    for (let c = 0; c <= coreCount; c++) {
-      const isDark = c < coreCount ? qr.modules.get(r, c) : 0;
-      if (isDark && startCol === -1) {
-        startCol = c;
-      } else if (!isDark && startCol !== -1) {
-        const span = c - startCol;
-        const rectX = x + (startCol + quietZone) * modSize;
+    for (let c = 0; c < coreCount; c++) {
+      if (qr.modules.get(r, c)) {
+        const rectX = x + (c + quietZone) * modSize;
         const rectY = y + (r + quietZone) * modSize;
-        const rectW = span * modSize + 0.01;
-        const rectH = modSize + 0.01;
-        doc.rect(rectX, rectY, rectW, rectH);
-        startCol = -1;
+        doc.rect(rectX, rectY, modSize, modSize);
       }
     }
   }
@@ -219,13 +212,13 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 16;
+        y += 18;
 
-        // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
-        const qrSize = 48;
+        // 5. Centered Vector QR Code (50 pt with 4-module quiet zone, 100% razor-sharp vector paths)
+        const qrSize = 50;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 7;
+        y += qrSize + 9;
 
         // Thin horizontal separator line right under QR code (exact match to official sample)
         doc.save();

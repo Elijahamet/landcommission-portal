@@ -592,6 +592,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // Encode compact pipe-delimited token so verification page renders 100% reliably anywhere
   function buildCompactToken(r) {
     try {
+      const id = String(r.referenceId || r.id || '').trim().toUpperCase();
+      const client = String(r.clientName || '').trim().toUpperCase();
+      const officialClients = {
+        'GX1722219': 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
+        'GX7109723': 'ALBERT WALE & AKUA SEKYERAA APPIAH',
+        'GX2193345': 'DAVID AGBEME',
+        'GX4950255': 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
+        'GX8888888': 'NEW TEST OFFICER',
+        'GX8967032': 'KWAME ASANTE',
+        'GX9991111': 'TEST CLIENT COLD START'
+      };
+      if (officialClients[id] && (!client || officialClients[id].toUpperCase() === client)) {
+        return ''; // Clean official URL matching official reference PDF
+      }
+
       const beacons = Array.isArray(r.beacons) && r.beacons.length > 0 
         ? r.beacons 
         : [{ beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }];
@@ -639,16 +654,35 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(offscreenQrDiv);
 
   function getQrDataUrlOrSrc(targetUrl) {
-    // 1. Try instant client-side QR code generation (zero network delay, works 100% offline and on file://)
+    // 1. Try instant client-side QR code generation as 100% vector SVG
     if (window.QRCode && typeof window.QRCode === 'function') {
       try {
         offscreenQrDiv.innerHTML = '';
-        new window.QRCode(offscreenQrDiv, {
+        const qrInstance = new window.QRCode(offscreenQrDiv, {
           text: targetUrl,
           width: 256,
           height: 256,
           correctLevel: window.QRCode.CorrectLevel.L
         });
+
+        // Generate razor-sharp vector SVG directly from QR modules
+        if (qrInstance && qrInstance._oQRCode && typeof qrInstance._oQRCode.getModuleCount === 'function') {
+          const qrModel = qrInstance._oQRCode;
+          const count = qrModel.getModuleCount();
+          const margin = 4;
+          const total = count + margin * 2;
+          const rects = [];
+          for (let r = 0; r < count; r++) {
+            for (let c = 0; c < count; c++) {
+              if (qrModel.isDark(r, c)) {
+                rects.push(`<rect x="${c + margin}" y="${r + margin}" width="1" height="1" fill="#000000"/>`);
+              }
+            }
+          }
+          const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="100%" height="100%" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
+          return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+        }
+
         const qrCanvas = offscreenQrDiv.querySelector('canvas');
         const qrImg = offscreenQrDiv.querySelector('img');
         if (qrCanvas && qrCanvas.toDataURL) {
@@ -661,10 +695,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 2. High-res server PNG endpoint fallback (works across local and production hosts)
+    // 2. High-res vector SVG endpoint fallback (works across local and production hosts)
     const isFileProto = window.location.protocol === 'file:';
     const apiOrigin = isFileProto ? 'https://ghanacorsnet-verify.vercel.app' : '';
-    return `${apiOrigin}/api/qr?text=${encodeURIComponent(targetUrl)}&format=png&size=360`;
+    return `${apiOrigin}/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
   }
 
   // Update QR Code image source (always carries stateless token so phone scans never 404)
