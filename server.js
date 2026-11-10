@@ -116,11 +116,17 @@ function buildCompactToken(rec) {
 }
 
 function constructVerificationUrl(record, baseUrl) {
-  const cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
+  let cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
+  if (cleanBase.includes('landcommission-portal.vercel.app')) {
+    cleanBase = 'https://ghanacorsnet-verify.vercel.app';
+  }
   const refId = String(record.referenceId || record.id || '').trim();
   if (record && record.verificationUrl && typeof record.verificationUrl === 'string' && record.verificationUrl.startsWith('http')) {
     // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
-    const cleanStored = record.verificationUrl.split('?')[0];
+    let cleanStored = record.verificationUrl.split('?')[0];
+    if (cleanStored.includes('landcommission-portal.vercel.app')) {
+      cleanStored = cleanStored.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
     if (baseUrl && !cleanStored.startsWith(cleanBase)) {
       try {
         const parsed = new URL(cleanStored);
@@ -168,7 +174,18 @@ app.get('/api/records', (req, res) => {
 // Bulk sync endpoint for persistent multi-device storage (supports 1000+ documents)
 app.post('/api/records/sync', (req, res) => {
   try {
-    const list = Array.isArray(req.body) ? req.body : (req.body && req.body.records ? req.body.records : []);
+    let list = Array.isArray(req.body) ? req.body : (req.body && req.body.records ? req.body.records : []);
+    list = list.map(r => {
+      if (r) {
+        if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
+          r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+        }
+        if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
+          r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+        }
+      }
+      return r;
+    });
     const merged = db.syncMany(list);
     res.json({ success: true, count: merged.length, records: merged });
   } catch (err) {
@@ -274,7 +291,10 @@ app.post('/api/records', async (req, res) => {
     const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
       ? autoOrigin
       : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
-    const baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
+    let baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
+    if (baseUrl.includes('landcommission-portal.vercel.app')) {
+      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    }
 
     const beaconIdx = (body.beacons && body.beacons[0] && body.beacons[0].beaconIndex) || 'SGGA EX 19 1A';
     const now = new Date();
@@ -454,7 +474,10 @@ app.post('/api/generate-pdf', async (req, res) => {
     const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
       ? autoOrigin
       : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
-    const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
+    let baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
+    if (baseUrl.includes('landcommission-portal.vercel.app')) {
+      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    }
 
     // Universal self-verifying URL: encodes complete document payload so phone scans always verify immediately
     const verificationUrl = constructVerificationUrl(record, baseUrl);

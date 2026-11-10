@@ -397,6 +397,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let vUrl = '';
     if (currentLoadedVerificationUrl && currentLoadedVerificationUrl.includes(refId)) {
       vUrl = currentLoadedVerificationUrl;
+      if (vUrl.includes('landcommission-portal.vercel.app')) {
+        vUrl = vUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      }
+    }
+    let curBase = (baseUrlInput.value || '').trim();
+    if (curBase.includes('landcommission-portal.vercel.app')) {
+      curBase = 'https://ghanacorsnet-verify.vercel.app';
+      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
     }
     return {
       id: refId,
@@ -413,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stationLocation: (stationLocationInput ? stationLocationInput.value : '').trim() || 'GWCL, DODOWA',
       smdOfficerName: (smdOfficerInput.value || '').trim(),
       beacons: JSON.parse(JSON.stringify(currentBeacons)),
-      baseUrl: (baseUrlInput.value || '').trim(),
+      baseUrl: curBase,
       verificationUrl: vUrl,
       status: 'ACTIVE_VERIFIED',
       updatedAt: new Date().toISOString()
@@ -524,7 +532,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load specific data into form
   function loadData(data) {
-    currentLoadedVerificationUrl = (data.verificationUrl || '').split('?')[0];
+    let rawVUrl = (data.verificationUrl || '').split('?')[0];
+    if (rawVUrl.includes('landcommission-portal.vercel.app')) {
+      rawVUrl = rawVUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
+    currentLoadedVerificationUrl = rawVUrl;
+    if (data.baseUrl && data.baseUrl.includes('landcommission-portal.vercel.app')) {
+      data.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
+    }
     refIdInput.value = data.referenceId || generateUniqueRefId();
     regionalNoInput.value = data.regionalNumber || '';
     vCodeInput.value = data.verificationCode || generateVerificationCode(data.beacons && data.beacons[0] ? data.beacons[0].beaconIndex : '');
@@ -776,11 +792,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function constructVerificationUrl(r, customBase) {
-    const baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
+    let baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
+    if (baseUrl.includes('landcommission-portal.vercel.app')) {
+      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
+    }
     const refId = (r.referenceId || r.id || '').trim();
     if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
       // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
-      const cleanStoredUrl = r.verificationUrl.split('?')[0];
+      let cleanStoredUrl = r.verificationUrl.split('?')[0];
+      // Automatically migrate defunct landcommission-portal.vercel.app domain to active ghanacorsnet-verify.vercel.app domain
+      if (cleanStoredUrl.includes('landcommission-portal.vercel.app')) {
+        cleanStoredUrl = cleanStoredUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      }
       if (customBase && !cleanStoredUrl.startsWith(baseUrl)) {
         try {
           const parsed = new URL(cleanStoredUrl);
@@ -805,6 +829,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Clean targetUrl of any query string parameters to guarantee Version 3 (29x29) spacious QR
     targetUrl = targetUrl.split('?')[0];
+    if (targetUrl.includes('landcommission-portal.vercel.app')) {
+      targetUrl = targetUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
     // 1. Try instant client-side QR code generation as 100% vector SVG
     if (window.QRCode && typeof window.QRCode === 'function') {
       try {
@@ -852,7 +879,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update QR Code image source (always carries stateless token so phone scans never 404)
   function updateQrCode() {
     const currentRec = getCurrentFormData();
-    const targetUrl = constructVerificationUrl(currentRec);
+    let targetUrl = constructVerificationUrl(currentRec);
+    if (targetUrl.includes('landcommission-portal.vercel.app')) {
+      targetUrl = targetUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
     const finalQrSrc = getQrDataUrlOrSrc(targetUrl);
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
@@ -896,11 +926,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnUseLandPortal) {
     btnUseLandPortal.addEventListener('click', () => {
-      baseUrlInput.value = 'https://landcommission-portal.vercel.app';
+      baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
       baseUrlInput.dataset.userEdited = 'true';
       updateLivePreview();
       triggerAutoSave();
-      showToast('Set to landcommission-portal.vercel.app (Fallback)', 'info');
+      showToast('Set to ghanacorsnet-verify.vercel.app (Official)', 'success');
     });
   }
 
@@ -1099,6 +1129,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function executeAutoSave() {
     const currentRec = getCurrentFormData();
+    if (currentRec.baseUrl && currentRec.baseUrl.includes('landcommission-portal.vercel.app')) {
+      currentRec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    }
+    if (currentRec.verificationUrl && currentRec.verificationUrl.includes('landcommission-portal.vercel.app')) {
+      currentRec.verificationUrl = currentRec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
 
     // Save active working draft into localStorage
     try {
@@ -1137,6 +1173,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const list = JSON.parse(raw);
             if (Array.isArray(list)) {
               list.forEach(r => {
+                if (r) {
+                  if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
+                    r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+                  }
+                  if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
+                    r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+                  }
+                }
                 const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
                 if (idKey && !map.has(idKey)) {
                   map.set(idKey, r);
@@ -1155,6 +1199,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save record to local vault. If forceNew is true, it guarantees a brand new entry!
   function saveRecordToLocalStorage(rec, forceNew = false) {
     try {
+      if (rec.verificationUrl && rec.verificationUrl.includes('landcommission-portal.vercel.app')) {
+        rec.verificationUrl = rec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      }
+      if (rec.baseUrl && rec.baseUrl.includes('landcommission-portal.vercel.app')) {
+        rec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      }
       let records = getLocalRecords();
       const cleanRef = String(rec.referenceId || rec.id).trim().toLowerCase();
       const existingIdx = records.findIndex(r => String(r.referenceId || r.id).trim().toLowerCase() === cleanRef);
@@ -1193,6 +1243,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Regenerates QR representations with new SVG vector standard, preserves all user data, IDs, and destination URLs
   function migrateAllExistingSavedForms() {
     try {
+      // 0. Sweep entire browser localStorage: replace any defunct landcommission-portal.vercel.app with official ghanacorsnet-verify.vercel.app
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          const val = localStorage.getItem(key);
+          if (val && typeof val === 'string' && val.includes('landcommission-portal.vercel.app')) {
+            const cleaned = val.replaceAll('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+            localStorage.setItem(key, cleaned);
+          }
+        }
+      } catch (sweepErr) {}
+
       const keys = [
         'landscommission_saved_records_v3',
         'landscommission_saved_records_v2',
@@ -1225,7 +1288,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   // Merge preserving all user-entered form details
                   const merged = existing ? { ...existing, ...r } : { ...r };
 
-                  // Ensure clean Version 3 destination URL without legacy long ?d= tokens
+                  // Ensure clean Version 3 destination URL without legacy long ?d= tokens or defunct domains
+                  if (merged.baseUrl && merged.baseUrl.includes('landcommission-portal.vercel.app')) {
+                    merged.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+                  }
                   merged.verificationUrl = constructVerificationUrl(merged);
 
                   // Purge any stale raster image data to guarantee pure vector SVG rendering
@@ -1410,6 +1476,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. Universal PDF Download Function (Server vector PDF with instant browser HTML2PDF fallback)
   async function downloadPdfForRecord(rec, triggeringBtn = null) {
     if (!rec) return;
+    rec = { ...rec };
+    if (rec.verificationUrl && rec.verificationUrl.includes('landcommission-portal.vercel.app')) {
+      rec.verificationUrl = rec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    }
+    if (rec.baseUrl && rec.baseUrl.includes('landcommission-portal.vercel.app')) {
+      rec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    }
     const originalContent = triggeringBtn ? triggeringBtn.innerHTML : null;
     if (triggeringBtn) {
       triggeringBtn.disabled = true;

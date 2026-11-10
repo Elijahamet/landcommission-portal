@@ -53,6 +53,12 @@ function mergeWithBundled(records) {
     records.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
       if (key) {
+        if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
+          r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+        }
+        if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
+          r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+        }
         const existing = map.get(key);
         map.set(key, { ...(existing || {}), ...r });
       }
@@ -109,6 +115,14 @@ const db = {
   },
 
   save(record) {
+    if (record) {
+      if (record.verificationUrl && record.verificationUrl.includes('landcommission-portal.vercel.app')) {
+        record.verificationUrl = record.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      }
+      if (record.baseUrl && record.baseUrl.includes('landcommission-portal.vercel.app')) {
+        record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      }
+    }
     const records = readRecords();
     const cleanId = String(record.id || record.referenceId || Date.now()).trim();
     record.id = cleanId;
@@ -157,6 +171,12 @@ const db = {
     incomingRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
       if (!key) return;
+      if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
+        r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      }
+      if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
+        r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      }
       const existing = map.get(key);
       if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
         map.set(key, { ...existing, ...r });
