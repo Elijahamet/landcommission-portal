@@ -40,6 +40,31 @@ if (isVercel) {
   } catch (e) {}
 }
 
+// On-demand PDF delivery: If static file is missing or on serverless ephemeral /tmp, generate vector PDF on the fly
+app.get('/saved_pdfs/:filename', async (req, res, next) => {
+  try {
+    const filename = path.basename(req.params.filename);
+    const localPath = path.join(__dirname, 'saved_pdfs', filename);
+    const tmpPath = path.join(os.tmpdir(), 'saved_pdfs', filename);
+    if (fs.existsSync(localPath)) {
+      return res.sendFile(localPath);
+    }
+    if (fs.existsSync(tmpPath)) {
+      return res.sendFile(tmpPath);
+    }
+    const refId = filename.replace(/\.pdf$/i, '');
+    const record = db.getById(refId);
+    if (record) {
+      const vUrl = constructVerificationUrl(record);
+      const pdfBuffer = await generateSlipPDF(record, vUrl);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      return res.send(pdfBuffer);
+    }
+  } catch (err) {}
+  next();
+});
+
 // Helper to encode stateless compact record payload for QR codes
 function buildCompactToken(rec) {
   try {
@@ -91,6 +116,15 @@ function buildCompactToken(rec) {
 }
 
 function constructVerificationUrl(record, baseUrl) {
+  if (record && record.verificationUrl && typeof record.verificationUrl === 'string' && record.verificationUrl.startsWith('http')) {
+    if (baseUrl && !record.verificationUrl.startsWith(baseUrl.replace(/\/$/, ''))) {
+      try {
+        const parsed = new URL(record.verificationUrl);
+        return `${baseUrl.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
+      } catch (e) {}
+    }
+    return record.verificationUrl;
+  }
   const refId = String(record.referenceId || record.id || '').trim();
   const token = buildCompactToken(record);
   const cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');

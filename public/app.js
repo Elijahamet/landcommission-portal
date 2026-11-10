@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
   ];
   let allRecords = [];
+  let currentLoadedVerificationUrl = '';
 
   // DOM Elements - Form
   const form = document.getElementById('recordForm');
@@ -162,7 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX1722219'
     },
     {
       referenceId: 'GX7109723',
@@ -180,7 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX7109723'
     },
     {
       referenceId: 'GX2193345',
@@ -198,7 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX2193345'
     },
     {
       referenceId: 'GX4950255',
@@ -216,7 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX4950255'
     },
     {
       referenceId: 'GX8888888',
@@ -234,7 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA CORS/2025/4', x: '100', y: '200' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX8888888'
     },
     {
       referenceId: 'GX8967032',
@@ -252,7 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX8967032'
     },
     {
       referenceId: 'GX9991111',
@@ -270,7 +277,8 @@ document.addEventListener('DOMContentLoaded', () => {
       beacons: [
         { beaconIndex: 'SGGA EX 19 1A', x: '100', y: '200' }
       ],
-      status: 'ACTIVE_VERIFIED'
+      status: 'ACTIVE_VERIFIED',
+      verificationUrl: 'https://ghanacorsnet-verify.vercel.app/verify/GX9991111'
     }
   ];
 
@@ -386,6 +394,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let pts = parseInt(pointsInput.value, 10);
     if (isNaN(pts) || pts < 4) pts = 4;
     const calcAmt = `GHS ${calculateAmountForPoints(pts).toFixed(2)}`;
+    let vUrl = '';
+    if (currentLoadedVerificationUrl && currentLoadedVerificationUrl.includes(refId)) {
+      vUrl = currentLoadedVerificationUrl;
+    }
     return {
       id: refId,
       referenceId: refId,
@@ -402,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
       smdOfficerName: (smdOfficerInput.value || '').trim(),
       beacons: JSON.parse(JSON.stringify(currentBeacons)),
       baseUrl: (baseUrlInput.value || '').trim(),
+      verificationUrl: vUrl,
       status: 'ACTIVE_VERIFIED',
       updatedAt: new Date().toISOString()
     };
@@ -511,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load specific data into form
   function loadData(data) {
+    currentLoadedVerificationUrl = data.verificationUrl || '';
     refIdInput.value = data.referenceId || generateUniqueRefId();
     regionalNoInput.value = data.regionalNumber || '';
     vCodeInput.value = data.verificationCode || generateVerificationCode(data.beacons && data.beacons[0] ? data.beacons[0].beaconIndex : '');
@@ -762,6 +776,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function constructVerificationUrl(r, customBase) {
+    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
+      if (customBase && !r.verificationUrl.startsWith(customBase.replace(/\/$/, ''))) {
+        try {
+          const parsed = new URL(r.verificationUrl);
+          return `${customBase.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
+        } catch (e) {}
+      }
+      return r.verificationUrl;
+    }
     const baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
     const refId = (r.referenceId || r.id || '').trim();
     const compactToken = buildCompactToken(r);
@@ -813,14 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
           }
         }
-
-        const qrCanvas = offscreenQrDiv.querySelector('canvas');
-        const qrImg = offscreenQrDiv.querySelector('img');
-        if (qrCanvas && qrCanvas.toDataURL) {
-          return qrCanvas.toDataURL('image/png');
-        } else if (qrImg && qrImg.src && qrImg.src.startsWith('data:')) {
-          return qrImg.src;
-        }
       } catch (e) {
         console.warn('Client QR render note:', e.message);
       }
@@ -841,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.preview-qr-img').forEach(img => {
       img.onerror = () => {
         img.onerror = null;
-        img.src = `https://ghanacorsnet-verify.vercel.app/api/qr?text=${encodeURIComponent(targetUrl)}&format=png&size=360`;
+        img.src = `https://ghanacorsnet-verify.vercel.app/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
       };
       img.src = finalQrSrc;
     });
@@ -1170,6 +1185,100 @@ document.addEventListener('DOMContentLoaded', () => {
       const filtered = records.filter(r => String(r.referenceId || r.id).trim().toLowerCase() !== cleanId);
       localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(filtered));
     } catch (e) {}
+  }
+
+  // Automatically migrate ALL existing saved forms across all storage versions
+  // Regenerates QR representations with new SVG vector standard, preserves all user data, IDs, and destination URLs
+  function migrateAllExistingSavedForms() {
+    try {
+      const keys = [
+        'landscommission_saved_records_v3',
+        'landscommission_saved_records_v2',
+        'landscommission_saved_records_v1',
+        'landscommission_saved_records'
+      ];
+      const recordMap = new Map();
+
+      // 1. Preload official saved records
+      OFFICIAL_SAVED_RECORDS.forEach(r => {
+        const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
+        if (idKey) {
+          const cleanRec = { ...r };
+          cleanRec.verificationUrl = cleanRec.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${cleanRec.referenceId || cleanRec.id}`;
+          recordMap.set(idKey, cleanRec);
+        }
+      });
+
+      // 2. Scan every storage key in localStorage
+      keys.forEach(k => {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              list.forEach(r => {
+                const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
+                if (idKey) {
+                  const existing = recordMap.get(idKey);
+                  // Merge preserving all user-entered form details
+                  const merged = existing ? { ...existing, ...r } : { ...r };
+
+                  // Ensure destination URL is strictly preserved
+                  if (!merged.verificationUrl || typeof merged.verificationUrl !== 'string' || !merged.verificationUrl.startsWith('http')) {
+                    merged.verificationUrl = constructVerificationUrl(merged);
+                  }
+
+                  // Purge any stale raster image data to guarantee pure vector SVG rendering
+                  delete merged.qrCode;
+                  delete merged.qrDataUrl;
+                  delete merged.qrImage;
+                  delete merged.rasterQr;
+                  delete merged.qrCanvas;
+
+                  merged.status = 'ACTIVE_VERIFIED';
+                  recordMap.set(idKey, merged);
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      });
+
+      // 3. Purge raster data from working drafts
+      const draftKeys = [
+        'landscommission_active_draft_v3',
+        'landscommission_active_draft_v2',
+        'landscommission_active_draft'
+      ];
+      draftKeys.forEach(dk => {
+        try {
+          const raw = localStorage.getItem(dk);
+          if (raw) {
+            const draft = JSON.parse(raw);
+            if (draft && typeof draft === 'object') {
+              delete draft.qrCode;
+              delete draft.qrDataUrl;
+              delete draft.qrImage;
+              delete draft.rasterQr;
+              delete draft.qrCanvas;
+              if (!draft.verificationUrl && draft.referenceId) {
+                draft.verificationUrl = constructVerificationUrl(draft);
+              }
+              localStorage.setItem(dk, JSON.stringify(draft));
+            }
+          }
+        } catch (e) {}
+      });
+
+      const migratedList = Array.from(recordMap.values());
+      if (migratedList.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(migratedList));
+      }
+      return migratedList;
+    } catch (err) {
+      console.warn('Migration note:', err);
+      return [];
+    }
   }
 
   function refreshRecordsBadge() {
@@ -1744,6 +1853,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // INITIAL BOOT: Sync with server, restore active draft if available, or load official record
   initNetwork().then(async () => {
+    // 0. Automatically migrate all existing saved forms across all storage versions to new vector QR standard
+    migrateAllExistingSavedForms();
+
     // 1. Sync local vault with server immediately on startup
     await syncFullVaultWithServer();
     await fetchRecordsList();
