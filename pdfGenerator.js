@@ -38,7 +38,7 @@ if (!logoBuffer) {
 // Function to draw 100% pure vector QR code with 4-module quiet zone, sharp edges, and zero pixelation
 function drawVectorQRCode(doc, targetUrl, x, y, size) {
   const qr = QRCode.create(targetUrl, {
-    errorCorrectionLevel: 'M'
+    errorCorrectionLevel: 'L'
   });
 
   const quietZone = 4; // Exactly 4 modules of white quiet zone on all sides
@@ -64,14 +64,15 @@ function drawVectorQRCode(doc, targetUrl, x, y, size) {
         const span = c - startCol;
         const rectX = x + (startCol + quietZone) * modSize;
         const rectY = y + (r + quietZone) * modSize;
-        const rectW = span * modSize;
-        const rectH = modSize;
-        doc.rect(rectX, rectY, rectW, rectH).fill('#000000');
+        const rectW = span * modSize + 0.01;
+        const rectH = modSize + 0.01;
+        doc.rect(rectX, rectY, rectW, rectH);
         startCol = -1;
       }
     }
   }
 
+  doc.fill();
   doc.restore();
 }
 
@@ -218,20 +219,20 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 18;
+        y += 16;
 
-        // 5. Centered Vector QR Code (52 pt with 4-module quiet zone, 100% razor-sharp vector paths)
-        const qrSize = 52;
+        // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
+        const qrSize = 48;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 8;
+        y += qrSize + 7;
 
         // Thin horizontal separator line right under QR code (exact match to official sample)
         doc.save();
         doc.strokeColor('#dddddd').lineWidth(0.5);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 10;
+        y += 12;
 
         // 6. Authorization
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')

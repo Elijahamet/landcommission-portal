@@ -255,7 +255,7 @@ app.get('/api/qr', async (req, res) => {
       const svgString = await QRCode.toString(text, {
         type: 'svg',
         margin: 4,
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'L',
         color: {
           dark: '#000000',
           light: '#ffffff'
@@ -271,7 +271,7 @@ app.get('/api/qr', async (req, res) => {
       type: 'png',
       width: Math.max(size, 400),
       margin: 4,
-      errorCorrectionLevel: 'M',
+      errorCorrectionLevel: 'L',
       color: {
         dark: '#000000',
         light: '#ffffff'

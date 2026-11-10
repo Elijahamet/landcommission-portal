@@ -628,17 +628,17 @@ body {
   word-break: break-all;
 }
 
-/* Center QR Code Container (Matching compact 50pt size with authentic sample spacing) */
+/* Center QR Code Container (Matching compact 48pt vector size with authentic sample spacing) */
 .doc-qr-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 14px 0 8px 0;
+  margin: 16px 0 7px 0;
 }
 
 .doc-qr-img {
-  width: 66px;
-  height: 66px;
+  width: 64px;
+  height: 64px;
   background: #ffffff;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
@@ -651,7 +651,7 @@ body {
   width: 100%;
   height: 1px;
   background-color: #dddddd;
-  margin: 6px 0 10px 0;
+  margin: 6px 0 12px 0;
 }
 
 /* Authorization Block */
