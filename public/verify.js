@@ -165,23 +165,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Helper to find record from localStorage (if opened on creating browser)
+  // Helper to find record from localStorage across all versions (if opened on creating browser)
   function getLocalFallback(targetId) {
     try {
       const clean = String(targetId || '').trim().toUpperCase();
-      // Check saved records
-      const rawSaved = localStorage.getItem('landscommission_saved_records_v3');
-      if (rawSaved) {
-        const list = JSON.parse(rawSaved);
-        const hit = list.find(r => String(r.referenceId || r.id || '').trim().toUpperCase() === clean);
-        if (hit) return hit;
+      const keys = [
+        'landscommission_saved_records_v3',
+        'landscommission_saved_records_v2',
+        'landscommission_saved_records_v1',
+        'landscommission_saved_records'
+      ];
+      for (const k of keys) {
+        const rawSaved = localStorage.getItem(k);
+        if (rawSaved) {
+          try {
+            const list = JSON.parse(rawSaved);
+            if (Array.isArray(list)) {
+              const hit = list.find(r => String(r.referenceId || r.id || '').trim().toUpperCase() === clean);
+              if (hit) return hit;
+            }
+          } catch (e) {}
+        }
       }
-      // Check active draft
-      const rawDraft = localStorage.getItem('landscommission_active_draft_v3');
-      if (rawDraft) {
-        const draft = JSON.parse(rawDraft);
-        if (String(draft.referenceId || draft.id || '').trim().toUpperCase() === clean) {
-          return draft;
+      const draftKeys = [
+        'landscommission_active_draft_v3',
+        'landscommission_active_draft_v2',
+        'landscommission_active_draft'
+      ];
+      for (const dk of draftKeys) {
+        const rawDraft = localStorage.getItem(dk);
+        if (rawDraft) {
+          try {
+            const draft = JSON.parse(rawDraft);
+            if (String(draft.referenceId || draft.id || '').trim().toUpperCase() === clean) {
+              return draft;
+            }
+          } catch (e) {}
         }
       }
     } catch (e) {}

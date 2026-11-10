@@ -900,8 +900,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getLocalRecords() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEYS.SAVED_RECORDS);
-      return raw ? JSON.parse(raw) : [];
+      const keys = [
+        'landscommission_saved_records_v3',
+        'landscommission_saved_records_v2',
+        'landscommission_saved_records_v1',
+        'landscommission_saved_records'
+      ];
+      const map = new Map();
+      keys.forEach(k => {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              list.forEach(r => {
+                const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
+                if (idKey && !map.has(idKey)) {
+                  map.set(idKey, r);
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      });
+      return Array.from(map.values());
     } catch (e) {
       return [];
     }
@@ -1510,28 +1532,41 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  // INITIAL BOOT: Sync with server, restore active draft if available, or create fresh
+  // INITIAL BOOT: Sync with server, restore active draft if available, or load official record
   initNetwork().then(async () => {
     // 1. Sync local vault with server immediately on startup
     await syncFullVaultWithServer();
     await fetchRecordsList();
 
-    // 2. Restore active working draft if exists
-    try {
-      const savedDraftRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT);
-      if (savedDraftRaw) {
-        const savedDraft = JSON.parse(savedDraftRaw);
-        if (savedDraft && (savedDraft.clientName || savedDraft.referenceId)) {
-          loadData(savedDraft);
-          setAutoSaveStatus('ready', '✓ Draft restored');
-        } else {
-          initCleanNewPerson();
+    // 2. Restore active working draft from any version (v3, v2, v1)
+    let savedDraft = null;
+    const draftKeys = [
+      'landscommission_active_draft_v3',
+      'landscommission_active_draft_v2',
+      'landscommission_active_draft'
+    ];
+    for (const dk of draftKeys) {
+      try {
+        const raw = localStorage.getItem(dk);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.clientName || parsed.referenceId)) {
+            savedDraft = parsed;
+            break;
+          }
         }
-      } else {
-        initCleanNewPerson();
-      }
-    } catch (e) {
-      initCleanNewPerson();
+      } catch (e) {}
+    }
+
+    if (savedDraft && savedDraft.clientName) {
+      loadData(savedDraft);
+      setAutoSaveStatus('ready', '✓ Draft restored');
+    } else if (allRecords && allRecords.length > 0) {
+      loadData(allRecords[0]);
+      setAutoSaveStatus('ready', '✓ Official Record loaded');
+    } else {
+      loadData(SAMPLE_DATA);
+      setAutoSaveStatus('ready', '✓ Official Record loaded');
     }
   });
 
