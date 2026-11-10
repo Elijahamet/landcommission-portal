@@ -16,9 +16,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA EX 19 1A",
         "x": "333460.15",
-        "y": "1199651.081"
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -44,9 +44,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA CORS/2025/4",
         "x": "434768.62",
-        "y": "1230591.872"
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -72,9 +72,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA CORS/2025/4",
         "x": "434768.62",
-        "y": "1230591.872"
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -101,9 +101,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA EX 19 1A",
         "x": "333460.15",
-        "y": "1199651.081"
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -129,9 +129,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA CORS/2025/4",
         "x": "100",
-        "y": "200"
+        "y": "200",
+        "beaconIndex": "SGGA CORS/2025/4"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -157,9 +157,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA EX 19 1A",
         "x": "333460.15",
-        "y": "1199651.081"
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -185,9 +185,9 @@
     "smdOfficerName": "",
     "beacons": [
       {
-        "beaconIndex": "SGGA EX 19 1A",
         "x": "100",
-        "y": "200"
+        "y": "200",
+        "beaconIndex": "SGGA EX 19 1A"
       }
     ],
     "status": "ACTIVE_VERIFIED",
@@ -195,5 +195,20 @@
     "updatedAt": "2026-11-06T08:03:00.000Z",
     "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX9991111",
     "pdfFile": "GX9991111.pdf"
+  },
+  {
+    "id": "GX2452",
+    "date": "10 November 2026",
+    "clientName": "TEST PERSISTENCE RECORD",
+    "referenceId": "GX2452",
+    "regionalNumber": "SGGA. TEST/2026"
+  },
+  {
+    "id": "GX_COLDSTART_TEST",
+    "date": "10 November 2026",
+    "amountPaid": "GHS 150.00",
+    "clientName": "PERSISTED CLIENT AFTER DAYS",
+    "referenceId": "GX_COLDSTART_TEST",
+    "regionalNumber": "SGGA. COLD/2026"
   }
 ]

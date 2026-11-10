@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'GX4950255': {
       referenceId: 'GX4950255',
       id: 'GX4950255',
-      regionalNumber: 'SGGA.G3488/2026',
+      regionalNumber: 'SGGA.G4950/2026',
       verificationCode: 'SGGA EX 19 1A/26/11/06/858-26',
       transactionId: 'job_c7f8a9b0d1e2f3a4',
       stationLocation: 'GWCL, DODOWA',
@@ -373,26 +373,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {}
   }
 
-  // Only query server API if we do NOT have a verified token record!
-  // This guarantees that a scanned sheet's data is NEVER overwritten by a stale or mismatched record on the server!
+  // Persistent Cloud Registry Endpoints for mobile scans across all devices & serverless cold-starts
+  const CLOUD_ENDPOINTS = [
+    'https://superjsonblob.com/api/jsonBlob/0982252b-ce42-4468-8e09-e3c675a93ffe',
+    'https://superjsonblob.com/api/jsonBlob/9820d961-f55d-4909-b839-a3a17f63da80'
+  ];
+
+  async function fetchFromCloudRegistry(targetId) {
+    if (!targetId) return null;
+    const clean = String(targetId).trim().toUpperCase();
+    for (const ep of CLOUD_ENDPOINTS) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(ep, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data === 'object') {
+            if (data[clean]) return data[clean];
+            const foundKey = Object.keys(data).find(k => k.toUpperCase() === clean);
+            if (foundKey && data[foundKey]) return data[foundKey];
+            if (Array.isArray(data)) {
+              const hit = data.find(r => String(r.referenceId || r.id || '').toUpperCase() === clean);
+              if (hit) return hit;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  // Only query server API / cloud store if we do NOT have a verified token record!
+  // This guarantees that a scanned sheet's data is ALWAYS found, even days/months later!
   if (!tokenRecord) {
     try {
       const targetId = cleanId;
+      let recordFound = false;
+
       if (targetId) {
-        const res = await fetch(`/api/records/${encodeURIComponent(targetId)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.record) {
-            renderRecord(data.record);
+        // 1. Check server API
+        try {
+          const res = await fetch(`/api/records/${encodeURIComponent(targetId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.record) {
+              renderRecord(data.record);
+              recordFound = true;
+            }
           }
-        } else if (!immediateRecord) {
+        } catch (srvErr) {}
+
+        // 2. If serverless was recycled, query persistent cloud registry directly
+        if (!recordFound) {
+          const cloudRec = await fetchFromCloudRegistry(targetId);
+          if (cloudRec) {
+            renderRecord(cloudRec);
+            recordFound = true;
+            // Warm server cache
+            try {
+              fetch('/api/records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cloudRec)
+              }).catch(() => {});
+            } catch (e) {}
+          }
+        }
+
+        if (!recordFound && !immediateRecord) {
           throw new Error('Record not found');
         }
       } else if (!immediateRecord) {
         throw new Error('No record ID specified');
       }
     } catch (err) {
-      console.warn('API lookup note:', err.message);
+      console.warn('Lookup note:', err.message);
       if (!immediateRecord) {
         showError();
       }

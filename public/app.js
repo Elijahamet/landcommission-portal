@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     {
       referenceId: 'GX4950255',
       id: 'GX4950255',
-      regionalNumber: 'SGGA.G3488/2026',
+      regionalNumber: 'SGGA.G4950/2026',
       verificationCode: 'SGGA EX 19 1A/26/11/06/858-26',
       date: '06 November 2026',
       processedPoints: 4,
@@ -385,6 +385,58 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    return true;
+  }
+
+  // Regional Number Uniqueness Helpers
+  function normalizeRegionalNumber(str) {
+    return String(str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function findDuplicateRegionalNumber(regionalNumber, currentRefId) {
+    if (!regionalNumber) return null;
+    const target = normalizeRegionalNumber(regionalNumber);
+    if (!target) return null;
+    const cleanCurrentId = String(currentRefId || '').trim().toLowerCase();
+
+    const all = (typeof allRecords !== 'undefined' && Array.isArray(allRecords) && allRecords.length > 0)
+      ? allRecords
+      : getLocalRecords();
+
+    return all.find(r => {
+      const rId = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (cleanCurrentId && rId && rId === cleanCurrentId) {
+        return false; // The current document itself is permitted to keep its own regional number
+      }
+      return normalizeRegionalNumber(r.regionalNumber) === target;
+    }) || null;
+  }
+
+  function validateRegionalNumber(showErrorUi = true) {
+    const val = (regionalNoInput.value || '').trim();
+    const refId = (refIdInput.value || '').trim();
+    const errorEl = document.getElementById('regionalNumberError');
+
+    if (!val) {
+      if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+      regionalNoInput.style.borderColor = '';
+      return true;
+    }
+
+    const duplicate = findDuplicateRegionalNumber(val, refId);
+    if (duplicate) {
+      if (showErrorUi) {
+        regionalNoInput.style.borderColor = '#dc2626';
+        if (errorEl) {
+          errorEl.style.display = 'block';
+          errorEl.textContent = `⚠️ Regional Number "${val}" is already in use by "${duplicate.clientName || 'Another Client'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`;
+        }
+      }
+      return false;
+    }
+
+    regionalNoInput.style.borderColor = '';
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
     return true;
   }
 
@@ -981,6 +1033,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Real-time Regional Number Uniqueness check
+  regionalNoInput.addEventListener('input', () => {
+    validateRegionalNumber(true);
+  });
+  regionalNoInput.addEventListener('blur', () => {
+    validateRegionalNumber(true);
+  });
+  refIdInput.addEventListener('input', () => {
+    validateRegionalNumber(true);
+  });
+
   // Smart collision prevention: When editing a client name,
   // if current referenceId already belongs to a previously saved different client, auto-generate fresh unique Reference ID!
   clientNameInput.addEventListener('blur', () => {
@@ -1141,8 +1204,13 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_DRAFT, JSON.stringify(currentRec));
     } catch (e) {}
 
-    // Only commit to persistent saved registry and server if both clientName AND beacon coordinates are entered!
+    // Only commit to persistent saved registry and server if clientName, coordinates, AND unique regional number!
     const coordsValid = validateBeaconCoordinates({ showUiErrors: false });
+    const regValid = validateRegionalNumber(false);
+    if (!regValid) {
+      setAutoSaveStatus('error', '⚠️ Duplicate Regional Number');
+      return;
+    }
     if (currentRec.clientName && currentRec.clientName.trim().length > 1 && coordsValid) {
       saveRecordToLocalStorage(currentRec, false);
       // Background sync to server API
@@ -1368,6 +1436,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Don't save document!
       }
 
+      // 2. Regional Number must be unique across all documents
+      if (!validateRegionalNumber(true)) {
+        const val = (regionalNoInput.value || '').trim();
+        const dup = findDuplicateRegionalNumber(val, null);
+        const owner = dup ? ` (already used by "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
+        showToast(`Cannot save: Regional Number "${val}" is already in use${owner}. Regional Numbers must be unique.`, 'error');
+        regionalNoInput.focus();
+        return; // Don't save document!
+      }
+
       // 2. Process points should be from 4 upward
       let pts = parseInt(pointsInput.value, 10);
       if (isNaN(pts) || pts < 4) {
@@ -1430,6 +1508,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return; // Don't save document!
     }
 
+    // 2. Regional Number must be unique across all documents
+    if (!validateRegionalNumber(true)) {
+      const val = (regionalNoInput.value || '').trim();
+      const currentRef = (refIdInput.value || '').trim();
+      const dup = findDuplicateRegionalNumber(val, currentRef);
+      const owner = dup ? ` (already registered to "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
+      showToast(`Cannot update: Regional Number "${val}" is already in use${owner}. Regional Numbers must be unique.`, 'error');
+      regionalNoInput.focus();
+      return; // Don't save document!
+    }
+
     // 2. Process points should be from 4 upward
     let pts = parseInt(pointsInput.value, 10);
     if (isNaN(pts) || pts < 4) {
@@ -1460,6 +1549,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Persistent Cloud Registry Endpoints
+  const CLOUD_ENDPOINTS = [
+    'https://superjsonblob.com/api/jsonBlob/0982252b-ce42-4468-8e09-e3c675a93ffe',
+    'https://superjsonblob.com/api/jsonBlob/9820d961-f55d-4909-b839-a3a17f63da80'
+  ];
+
+  async function syncToCloudRegistry(records) {
+    const list = records || getLocalRecords();
+    if (!list || list.length === 0) return;
+    try {
+      const map = {};
+      list.forEach(r => {
+        const k = String(r.referenceId || r.id).trim().toUpperCase();
+        if (k) map[k] = r;
+      });
+      for (const ep of CLOUD_ENDPOINTS) {
+        try {
+          await fetch(ep, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(map)
+          });
+        } catch (e) {}
+      }
+    } catch (err) {}
+  }
+
+  async function fetchCloudRegistryRecords() {
+    for (const ep of CLOUD_ENDPOINTS) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(ep, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data === 'object') {
+            return Array.isArray(data) ? data : Object.values(data);
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  }
+
   // Sync full local vault to server so all 1000+ documents are backed up on server
   async function syncFullVaultWithServer() {
     const local = getLocalRecords();
@@ -1471,6 +1605,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(local)
       });
     } catch (e) {}
+    // Background persistent cloud store backup
+    syncToCloudRegistry(local);
   }
 
   // 6. Universal PDF Download Function (Server vector PDF with instant browser HTML2PDF fallback)
@@ -1929,7 +2065,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 0. Automatically migrate all existing saved forms across all storage versions to new vector QR standard
     migrateAllExistingSavedForms();
 
-    // 1. Sync local vault with server immediately on startup
+    // 1. Sync local vault with server and persistent cloud registry immediately on startup
+    try {
+      const cloudRecords = await fetchCloudRegistryRecords();
+      if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+        cloudRecords.forEach(r => saveRecordToLocalStorage(r, false));
+      }
+    } catch (e) {}
     await syncFullVaultWithServer();
     await fetchRecordsList();
 

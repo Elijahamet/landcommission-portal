@@ -2,6 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// Persistent Cloud Registry Endpoints for multi-device zero-latency sync & cold-start persistence
+const CLOUD_REGISTRY_ENDPOINTS = [
+  'https://superjsonblob.com/api/jsonBlob/0982252b-ce42-4468-8e09-e3c675a93ffe',
+  'https://superjsonblob.com/api/jsonBlob/9820d961-f55d-4909-b839-a3a17f63da80'
+];
+
 // Statically bundle records so Vercel @vercel/nft bundler ALWAYS includes all official documents
 let bundledRecords = [];
 try {
@@ -92,9 +98,71 @@ function writeRecords(records) {
   }
 }
 
+function normalizeReg(str) {
+  return String(str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+async function fetchCloudRecords() {
+  for (const url of CLOUD_REGISTRY_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          return Array.isArray(data) ? data : Object.values(data);
+        }
+      }
+    } catch (e) {}
+  }
+  return [];
+}
+
+let syncTimer = null;
+function pushCloudRecordsDebounced() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try {
+      const all = readRecords();
+      const map = {};
+      all.forEach(r => {
+        const k = String(r.referenceId || r.id).trim().toUpperCase();
+        if (k) map[k] = r;
+      });
+      for (const url of CLOUD_REGISTRY_ENDPOINTS) {
+        try {
+          await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(map)
+          });
+        } catch (e) {}
+      }
+    } catch (err) {}
+  }, 400);
+}
+
 const db = {
   getAll() {
     return readRecords();
+  },
+
+  findDuplicateRegionalNumber(regionalNumber, excludeId = null) {
+    if (!regionalNumber) return null;
+    const target = normalizeReg(regionalNumber);
+    if (!target) return null;
+    const cleanExclude = excludeId ? String(excludeId).trim().toLowerCase() : null;
+    const records = readRecords();
+
+    return records.find(r => {
+      const rId = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (cleanExclude && rId && rId === cleanExclude) {
+        return false;
+      }
+      return normalizeReg(r.regionalNumber) === target;
+    }) || null;
   },
 
   getById(id) {
@@ -114,6 +182,21 @@ const db = {
     return found || null;
   },
 
+  async getByIdAsync(id) {
+    let found = this.getById(id);
+    if (found) return found;
+
+    // Check persistent cloud store across serverless cold starts
+    try {
+      const cloudList = await fetchCloudRecords();
+      if (Array.isArray(cloudList) && cloudList.length > 0) {
+        this.syncMany(cloudList);
+        found = this.getById(id);
+      }
+    } catch (e) {}
+    return found || null;
+  },
+
   save(record) {
     if (record) {
       if (record.verificationUrl && record.verificationUrl.includes('landcommission-portal.vercel.app')) {
@@ -123,8 +206,20 @@ const db = {
         record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
       }
     }
-    const records = readRecords();
     const cleanId = String(record.id || record.referenceId || Date.now()).trim();
+
+    // Enforce Regional Number uniqueness
+    if (record.regionalNumber) {
+      const duplicate = this.findDuplicateRegionalNumber(record.regionalNumber, cleanId);
+      if (duplicate) {
+        const err = new Error(`Regional Number "${record.regionalNumber}" is already in use by "${duplicate.clientName || 'Another Client'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`);
+        err.code = 'DUPLICATE_REGIONAL_NUMBER';
+        err.duplicateRecord = duplicate;
+        throw err;
+      }
+    }
+
+    const records = readRecords();
     record.id = cleanId;
     record.referenceId = record.referenceId || cleanId;
     record.updatedAt = new Date().toISOString();
@@ -142,6 +237,7 @@ const db = {
     }
 
     writeRecords(records);
+    pushCloudRecordsDebounced();
     return record;
   },
 
@@ -153,6 +249,7 @@ const db = {
       String(r.referenceId || '').toLowerCase() !== cleanId
     );
     writeRecords(filtered);
+    pushCloudRecordsDebounced();
     return filtered.length < records.length;
   },
 
@@ -186,10 +283,17 @@ const db = {
     const merged = Array.from(map.values());
     merged.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
     writeRecords(merged);
+    pushCloudRecordsDebounced();
     return merged;
   }
 };
 
 initDb();
+// Background initial sync with persistent cloud store
+fetchCloudRecords().then(list => {
+  if (Array.isArray(list) && list.length > 0) {
+    db.syncMany(list);
+  }
+}).catch(() => {});
 
 module.exports = db;

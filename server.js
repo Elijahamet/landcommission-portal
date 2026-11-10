@@ -215,9 +215,9 @@ app.get('/api/saved-pdfs', (req, res) => {
   }
 });
 
-app.get('/api/records/:id', (req, res) => {
+app.get('/api/records/:id', async (req, res) => {
   try {
-    let record = db.getById(req.params.id);
+    let record = await db.getByIdAsync(req.params.id);
 
     // If record not in db and request includes token parameter ?d=..., decode and warm cache
     if (!record && req.query.d) {
@@ -303,6 +303,18 @@ app.post('/api/records', async (req, res) => {
     const dd = String(now.getDate()).padStart(2, '0');
     const autoVCode = `${beaconIdx}/${yy}/${mm}/${dd}/${Math.floor(100 + Math.random() * 900)}-${Math.floor(10 + Math.random() * 90)}`;
     const autoTxId = `job_${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+
+    // 0. Validation: Regional Number must be unique across all documents
+    const cleanReg = (body.regionalNumber || '').trim();
+    if (cleanReg) {
+      const duplicate = db.findDuplicateRegionalNumber(cleanReg, id || referenceId);
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          error: `Regional Number "${cleanReg}" is already registered to "${duplicate.clientName || 'another document'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`
+        });
+      }
+    }
 
     // 1. Validation: If coordinates of beacon index have not been entered, display error and don't save document
     const beacons = Array.isArray(body.beacons) ? body.beacons : [];
@@ -436,6 +448,18 @@ app.post('/api/generate-pdf', async (req, res) => {
     const referenceId = (record.referenceId || record.id || `GX${Math.floor(1000000 + Math.random() * 9000000)}`).trim();
     record.referenceId = referenceId;
     record.id = record.id || referenceId;
+
+    // Validation: Regional Number must be unique across all documents
+    const cleanReg = (record.regionalNumber || '').trim();
+    if (cleanReg) {
+      const duplicate = db.findDuplicateRegionalNumber(cleanReg, referenceId);
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          error: `Regional Number "${cleanReg}" is already registered to "${duplicate.clientName || 'another document'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`
+        });
+      }
+    }
 
     // Validation: coordinates of beacon index must be entered
     const beacons = Array.isArray(record.beacons) ? record.beacons : [];
