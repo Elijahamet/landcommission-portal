@@ -36,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnGenRef = document.getElementById('btnGenRef');
   const btnGenVCode = document.getElementById('btnGenVCode');
   const btnAddBeacon = document.getElementById('btnAddBeaconRow');
-  const btnUsePublic = document.getElementById('btnUsePublic');
+  const btnUseGhanaCorsNet = document.getElementById('btnUseGhanaCorsNet');
+  const btnUseLandPortal = document.getElementById('btnUseLandPortal');
+  const btnUsePublic = document.getElementById('btnUsePublic') || btnUseGhanaCorsNet;
   const btnUseWifiIp = document.getElementById('btnUseWifiIp');
   const btnUseLocalhost = document.getElementById('btnUseLocalhost');
   const tunnelStatusBadge = document.getElementById('tunnelStatusBadge');
@@ -305,47 +307,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Initialize Network Information
   async function initNetwork() {
-    if (window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app')) {
-      baseUrlInput.value = window.location.origin;
-      const statusEl = document.getElementById('netStatusText');
-      if (statusEl) statusEl.textContent = `🌐 Vercel Production Online`;
-      if (tunnelStatusBadge) {
-        tunnelStatusBadge.innerHTML = `
-          <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981;"></span>
-          <span><strong>Vercel Production Active:</strong> Live at ${window.location.host}! Scannable anywhere worldwide.</span>
-        `;
-      }
+    // Official Ghana CORS Verification Domain (displays "ghanacorsnet-verify..." on mobile scan)
+    const defaultVerificationOrigin = 'https://ghanacorsnet-verify.vercel.app';
+    baseUrlInput.value = defaultVerificationOrigin;
+
+    const statusEl = document.getElementById('netStatusText');
+    if (statusEl) statusEl.textContent = `🌐 ghanacorsnet-verify Active`;
+    if (tunnelStatusBadge) {
+      tunnelStatusBadge.innerHTML = `
+        <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981;"></span>
+        <span><strong>ghanacorsnet-verify Active:</strong> Mobile scans will display <code>ghanacorsnet-verify...</code></span>
+      `;
     }
 
     try {
       const res = await fetch('/api/network-info');
       if (res.ok) {
         networkInfo = await res.json();
-        
-        if (window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app')) {
-          baseUrlInput.value = window.location.origin;
-        } else if (networkInfo.publicUrl) {
-          const statusEl = document.getElementById('netStatusText');
-          if (statusEl) statusEl.textContent = `🌐 Worldwide Public Online`;
-          baseUrlInput.value = networkInfo.publicUrl;
-          if (tunnelStatusBadge) {
-            tunnelStatusBadge.innerHTML = `
-              <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981;"></span>
-              <span><strong>Worldwide Public Link Active:</strong> Scannable anywhere on mobile data (4G/5G) or any Wi-Fi!</span>
-            `;
-          }
-        } else {
-          const statusEl = document.getElementById('netStatusText');
-          if (statusEl) statusEl.textContent = `Connecting Public Link...`;
-          baseUrlInput.value = networkInfo.lanUrl;
-          pollPublicTunnel();
-        }
-
         if (modalIpDisplay) modalIpDisplay.textContent = networkInfo.localIp;
         updateLivePreview();
       }
     } catch (e) {
-      baseUrlInput.value = window.location.origin;
+      // Keep official domain as default
+      baseUrlInput.value = defaultVerificationOrigin;
     }
   }
 
@@ -658,7 +642,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Base URL Switches
-  if (btnUsePublic) {
+  if (btnUseGhanaCorsNet) {
+    btnUseGhanaCorsNet.addEventListener('click', () => {
+      baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
+      baseUrlInput.dataset.userEdited = 'true';
+      updateLivePreview();
+      triggerAutoSave();
+      showToast('Set to ghanacorsnet-verify.vercel.app (Official)', 'success');
+    });
+  }
+
+  if (btnUseLandPortal) {
+    btnUseLandPortal.addEventListener('click', () => {
+      baseUrlInput.value = 'https://landcommission-portal.vercel.app';
+      baseUrlInput.dataset.userEdited = 'true';
+      updateLivePreview();
+      triggerAutoSave();
+      showToast('Set to landcommission-portal.vercel.app (Fallback)', 'info');
+    });
+  }
+
+  if (btnUsePublic && btnUsePublic !== btnUseGhanaCorsNet) {
     btnUsePublic.addEventListener('click', () => {
       if (networkInfo.publicUrl) {
         baseUrlInput.value = networkInfo.publicUrl;

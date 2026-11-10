@@ -20,6 +20,14 @@
     {
       "source": "/verify",
       "destination": "/verify.html"
+    },
+    {
+      "source": "/ghanacorsnet-verify/(.*)",
+      "destination": "/verify.html"
+    },
+    {
+      "source": "/ghanacorsnet-verify",
+      "destination": "/verify.html"
     }
   ]
 }

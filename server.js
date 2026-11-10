@@ -152,7 +152,9 @@ app.post('/api/records', async (req, res) => {
       ? autoOrigin
       : getPublicUrl();
 
-    const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
+    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
+      ? autoOrigin
+      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
     const beaconIdx = (body.beacons && body.beacons[0] && body.beacons[0].beaconIndex) || 'SGGA EX 19 1A';
@@ -326,7 +328,9 @@ app.post('/api/generate-pdf', async (req, res) => {
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
     const autoOrigin = host ? `${proto}://${host}` : null;
     const publicUrl = autoOrigin || getPublicUrl();
-    const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
+    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
+      ? autoOrigin
+      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
     // Clean verification URL: known records use official clean URL, custom ones include self-verifying token
@@ -407,9 +411,11 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const autoOrigin = host ? `${proto}://${host}` : null;
 
     const publicUrl = autoOrigin || getPublicUrl();
-    const fallbackBase = publicUrl || `http://${LOCAL_IP}:${PORT}`;
+    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
+      ? autoOrigin
+      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
-    const targetBase = customBaseUrl || fallbackBase;
+    const targetBase = customBaseUrl || record.baseUrl || fallbackBase;
     const refKey = String(record.referenceId || record.id || '').toUpperCase();
     const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
     const isKnownSeed = Boolean(db.getById(refKey)) || knownSeeds.includes(refKey);
@@ -450,11 +456,11 @@ app.get('/api/records/:id/pdf', async (req, res) => {
 });
 
 // Verification page routes
-app.get('/verify/:id', (req, res) => {
+app.get(['/verify/:id', '/ghanacorsnet-verify/:id'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify.html'));
 });
 
-app.get('/verify', (req, res) => {
+app.get(['/verify', '/ghanacorsnet-verify'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify.html'));
 });
 

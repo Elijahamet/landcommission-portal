@@ -188,11 +188,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return null;
   }
 
-  // 1. Extract Record ID and optional compressed token from URL (/verify/:id or ?id=... and ?d=...)
+  // 1. Extract Record ID and optional compressed token from URL (/verify/:id, /ghanacorsnet-verify/:id, or ?id=... and ?d=...)
   let id = '';
   const pathParts = window.location.pathname.split('/').filter(Boolean);
-  if (pathParts.length >= 2 && pathParts[0] === 'verify') {
+  if (pathParts.length >= 2 && (pathParts[0] === 'verify' || pathParts[0] === 'ghanacorsnet-verify')) {
     id = decodeURIComponent(pathParts[1]);
+  } else if (pathParts.length === 1 && !pathParts[0].includes('.') && pathParts[0] !== 'verify' && pathParts[0] !== 'ghanacorsnet-verify' && pathParts[0] !== 'api') {
+    id = decodeURIComponent(pathParts[0]);
   } else {
     const urlParams = new URLSearchParams(window.location.search);
     id = urlParams.get('id') || '';
