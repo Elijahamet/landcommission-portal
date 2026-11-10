@@ -372,7 +372,8 @@ function generateVectorQrSvg(text, margin = 4) {
       }
     }
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="100%" height="100%" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
+  const svgDimension = total * 8;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${svgDimension}" height="${svgDimension}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
 }
 
 // QR Code vector/image endpoint (defaults to high-res PNG or scalable SVG with 4-module quiet zone)

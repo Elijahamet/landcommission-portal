@@ -829,7 +829,8 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-          const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="100%" height="100%" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
+          const svgDimension = total * 8;
+          const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${svgDimension}" height="${svgDimension}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
           try {
             return `data:image/svg+xml;base64,${toBase64(svgStr)}`;
           } catch (e) {

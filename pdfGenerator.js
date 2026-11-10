@@ -212,20 +212,20 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 18;
+        y += 14;
 
-        // 5. Centered Vector QR Code (50 pt with 4-module quiet zone, 100% razor-sharp vector paths)
-        const qrSize = 50;
+        // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
+        const qrSize = 48;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 9;
+        y += qrSize + 6;
 
         // Thin horizontal separator line right under QR code (exact match to official sample)
         doc.save();
         doc.strokeColor('#dddddd').lineWidth(0.5);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 12;
+        y += 14;
 
         // 6. Authorization
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
