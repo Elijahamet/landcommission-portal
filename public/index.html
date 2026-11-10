@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/style.css">
   <!-- Bundled html2pdf for client-side pixel-perfect PDF export -->
   <script src="/vendor/html2pdf.bundle.min.js"></script>
+  <!-- Standalone client-side QR generator (zero network latency, works offline and on file://) -->
+  <script src="/vendor/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -395,7 +397,7 @@
 
             <!-- Scannable QR Code -->
             <div class="doc-qr-container">
-              <img class="doc-qr-img preview-qr-img" src="" alt="Official Verification QR Code">
+              <img class="doc-qr-img preview-qr-img" width="64" height="64" src="" alt="Official Verification QR Code">
             </div>
 
             <!-- Thin horizontal line divider below QR code -->
@@ -509,7 +511,7 @@
 
             <!-- Scannable QR Code -->
             <div class="doc-qr-container">
-              <img class="doc-qr-img preview-qr-img" src="" alt="Official Verification QR Code">
+              <img class="doc-qr-img preview-qr-img" width="64" height="64" src="" alt="Official Verification QR Code">
             </div>
 
             <!-- Thin horizontal line divider below QR code -->

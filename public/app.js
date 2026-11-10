@@ -631,17 +631,53 @@ document.addEventListener('DOMContentLoaded', () => {
       : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
   }
 
+  // Dedicated offscreen container for instant zero-latency client-side QR generation
+  const offscreenQrDiv = document.createElement('div');
+  offscreenQrDiv.style.position = 'absolute';
+  offscreenQrDiv.style.left = '-9999px';
+  offscreenQrDiv.style.top = '-9999px';
+  document.body.appendChild(offscreenQrDiv);
+
+  function getQrDataUrlOrSrc(targetUrl) {
+    // 1. Try instant client-side QR code generation (zero network delay, works 100% offline and on file://)
+    if (window.QRCode && typeof window.QRCode === 'function') {
+      try {
+        offscreenQrDiv.innerHTML = '';
+        new window.QRCode(offscreenQrDiv, {
+          text: targetUrl,
+          width: 256,
+          height: 256,
+          correctLevel: window.QRCode.CorrectLevel.L
+        });
+        const qrCanvas = offscreenQrDiv.querySelector('canvas');
+        const qrImg = offscreenQrDiv.querySelector('img');
+        if (qrCanvas && qrCanvas.toDataURL) {
+          return qrCanvas.toDataURL('image/png');
+        } else if (qrImg && qrImg.src && qrImg.src.startsWith('data:')) {
+          return qrImg.src;
+        }
+      } catch (e) {
+        console.warn('Client QR render note:', e.message);
+      }
+    }
+
+    // 2. High-res server PNG endpoint fallback (works across local and production hosts)
+    const isFileProto = window.location.protocol === 'file:';
+    const apiOrigin = isFileProto ? 'https://ghanacorsnet-verify.vercel.app' : '';
+    return `${apiOrigin}/api/qr?text=${encodeURIComponent(targetUrl)}&format=png&size=360`;
+  }
+
   // Update QR Code image source (always carries stateless token so phone scans never 404)
   function updateQrCode() {
     const currentRec = getCurrentFormData();
     const targetUrl = constructVerificationUrl(currentRec);
-    const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
+    const finalQrSrc = getQrDataUrlOrSrc(targetUrl);
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
-      img.src = qrSrc;
+      img.src = finalQrSrc;
     });
 
-    if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
+    if (modalQrImg) modalQrImg.src = finalQrSrc;
     if (modalQrUrlText) modalQrUrlText.textContent = targetUrl;
     return targetUrl;
   }
@@ -1138,11 +1174,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Force preview QR images to load current record's QR and wait for load
       const qrTargetUrl = constructVerificationUrl(rec);
-      const qrSrc = `/api/qr?text=${encodeURIComponent(qrTargetUrl)}&format=svg`;
+      const qrSrc = getQrDataUrlOrSrc(qrTargetUrl);
       const qrImages = document.querySelectorAll('.preview-qr-img');
       await Promise.all(Array.from(qrImages).map(img => {
         return new Promise(resolve => {
-          if (img.src.includes(encodeURIComponent(qrTargetUrl)) && img.complete) {
+          if (img.src === qrSrc && img.complete) {
             return resolve();
           }
           img.onload = resolve;

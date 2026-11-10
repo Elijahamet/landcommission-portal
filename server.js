@@ -298,16 +298,16 @@ app.delete('/api/records/:id', (req, res) => {
   }
 });
 
-// QR Code vector/image endpoint (defaults to pure vector SVG with 4-module quiet zone)
+// QR Code vector/image endpoint (defaults to high-res PNG or scalable SVG with 4-module quiet zone)
 app.get('/api/qr', async (req, res) => {
   try {
     const publicUrl = getPublicUrl();
     const defaultHost = publicUrl || `http://${LOCAL_IP}:${PORT}`;
     const text = req.query.text || defaultHost;
-    const format = (req.query.format || 'svg').toLowerCase();
+    const format = (req.query.format || 'png').toLowerCase();
 
     if (format === 'svg') {
-      const svgString = await QRCode.toString(text, {
+      let svgString = await QRCode.toString(text, {
         type: 'svg',
         margin: 4,
         errorCorrectionLevel: 'L',
@@ -316,6 +316,9 @@ app.get('/api/qr', async (req, res) => {
           light: '#ffffff'
         }
       });
+      if (!svgString.includes('width=')) {
+        svgString = svgString.replace('<svg ', '<svg width="100%" height="100%" ');
+      }
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.send(svgString);
@@ -324,7 +327,7 @@ app.get('/api/qr', async (req, res) => {
     const size = parseInt(req.query.size || '360', 10);
     const pngBuffer = await QRCode.toBuffer(text, {
       type: 'png',
-      width: Math.max(size, 400),
+      width: Math.max(size, 360),
       margin: 4,
       errorCorrectionLevel: 'L',
       color: {

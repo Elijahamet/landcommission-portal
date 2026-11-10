@@ -639,6 +639,10 @@ body {
 .doc-qr-img {
   width: 64px;
   height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  display: block;
+  object-fit: contain;
   background: #ffffff;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
