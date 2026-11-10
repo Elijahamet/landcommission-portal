@@ -307,16 +307,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Initialize Network Information
   async function initNetwork() {
-    // Official Ghana CORS Verification Domain (displays "ghanacorsnet-verify..." on mobile scan)
-    const defaultVerificationOrigin = 'https://ghanacorsnet-verify.vercel.app';
-    baseUrlInput.value = defaultVerificationOrigin;
+    // Default to the active live production origin or landcommission-portal
+    const isLiveVercel = window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app');
+    const liveOrigin = isLiveVercel ? window.location.origin : 'https://landcommission-portal.vercel.app';
+    baseUrlInput.value = liveOrigin;
 
     const statusEl = document.getElementById('netStatusText');
-    if (statusEl) statusEl.textContent = `🌐 ghanacorsnet-verify Active`;
+    if (statusEl) statusEl.textContent = `🌐 Ghana CORS Net Online`;
     if (tunnelStatusBadge) {
       tunnelStatusBadge.innerHTML = `
         <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981;"></span>
-        <span><strong>ghanacorsnet-verify Active:</strong> Mobile scans will display <code>ghanacorsnet-verify...</code></span>
+        <span><strong>Live & Verified:</strong> QR code routes directly via <code>/ghanacorsnet-verify/...</code>!</span>
       `;
     }
 
@@ -328,8 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLivePreview();
       }
     } catch (e) {
-      // Keep official domain as default
-      baseUrlInput.value = defaultVerificationOrigin;
+      baseUrlInput.value = liveOrigin;
     }
   }
 
@@ -614,8 +614,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
     
     const targetUrl = compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      ? `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(refId)}?d=${compactToken}`
+      : `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(refId)}`;
     const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
@@ -1168,8 +1168,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const isKnownSeed = knownSeeds.includes(refId.toUpperCase());
       const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
       const verifyUrl = compactToken
-        ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
-        : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+        ? `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(refId)}?d=${compactToken}`
+        : `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(refId)}`;
       window.open(verifyUrl, '_blank');
     } catch (e) {
       showToast('Error opening verification: ' + e.message, 'error');

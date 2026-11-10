@@ -152,9 +152,7 @@ app.post('/api/records', async (req, res) => {
       ? autoOrigin
       : getPublicUrl();
 
-    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
-      ? autoOrigin
-      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
+    const fallbackBase = autoOrigin || (isVercel ? 'https://landcommission-portal.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
     const beaconIdx = (body.beacons && body.beacons[0] && body.beacons[0].beaconIndex) || 'SGGA EX 19 1A';
@@ -221,8 +219,8 @@ app.post('/api/records', async (req, res) => {
     const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+      ? `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
+      : `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -328,9 +326,7 @@ app.post('/api/generate-pdf', async (req, res) => {
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
     const autoOrigin = host ? `${proto}://${host}` : null;
     const publicUrl = autoOrigin || getPublicUrl();
-    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
-      ? autoOrigin
-      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
+    const fallbackBase = autoOrigin || (isVercel ? 'https://landcommission-portal.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
     // Clean verification URL: known records use official clean URL, custom ones include self-verifying token
@@ -338,8 +334,8 @@ app.post('/api/generate-pdf', async (req, res) => {
     const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
+      ? `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
+      : `${baseUrl}/ghanacorsnet-verify/${encodeURIComponent(referenceId)}`;
 
     record.verificationUrl = verificationUrl;
 
@@ -411,9 +407,7 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const autoOrigin = host ? `${proto}://${host}` : null;
 
     const publicUrl = autoOrigin || getPublicUrl();
-    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
-      ? autoOrigin
-      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
+    const fallbackBase = autoOrigin || (isVercel ? 'https://landcommission-portal.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
     const targetBase = customBaseUrl || record.baseUrl || fallbackBase;
     const refKey = String(record.referenceId || record.id || '').toUpperCase();
@@ -421,8 +415,8 @@ app.get('/api/records/:id/pdf', async (req, res) => {
     const isKnownSeed = Boolean(db.getById(refKey)) || knownSeeds.includes(refKey);
     const compactToken = isKnownSeed ? '' : buildCompactToken(record);
     const verificationUrl = compactToken
-      ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${compactToken}`
-      : `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
+      ? `${targetBase}/ghanacorsnet-verify/${encodeURIComponent(record.referenceId || record.id)}?d=${compactToken}`
+      : `${targetBase}/ghanacorsnet-verify/${encodeURIComponent(record.referenceId || record.id)}`;
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
     const refIdClean = (record.referenceId || record.id || 'EX_DATA').replace(/[^a-zA-Z0-9_-]/g, '_');

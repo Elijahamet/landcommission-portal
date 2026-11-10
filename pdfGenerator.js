@@ -90,7 +90,7 @@ async function generateSlipPDF(record, verificationUrl) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
       // Target URL for vector QR code
-      const qrTarget = verificationUrl || record.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${record.id || record.referenceId}`;
+      const qrTarget = verificationUrl || record.verificationUrl || `https://landcommission-portal.vercel.app/ghanacorsnet-verify/${record.id || record.referenceId}`;
 
       const pageWidth = doc.page.width;
       const leftMargin = 38;
