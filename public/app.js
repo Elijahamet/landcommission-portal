@@ -540,22 +540,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBeaconsEditor();
     updateLivePreview();
     triggerAutoSave();
-
-    // Sync quick-select dropdown and pills with currently loaded record
-    const loadedRef = String(data.referenceId || data.id || '').trim().toUpperCase();
-    const quickSelectEl = document.getElementById('quickLoadSavedPdfSelect');
-    if (quickSelectEl && loadedRef) {
-      quickSelectEl.value = loadedRef;
-    }
-    document.querySelectorAll('.btn-quick-pill').forEach(pill => {
-      if (pill.dataset.id === loadedRef) {
-        pill.style.background = '#166534';
-        pill.style.color = '#ffffff';
-      } else {
-        pill.style.background = '#e2e8f0';
-        pill.style.color = '#1e293b';
-      }
-    });
   }
 
   // 3. Render Beacons in Editor
@@ -728,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
+  
   // Encode compact pipe-delimited token so verification page renders 100% reliably anywhere
   function buildCompactToken(r) {
     try {
@@ -1002,42 +987,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Quick Saved PDFs & Documents Selector
-  const quickLoadSavedPdfSelect = document.getElementById('quickLoadSavedPdfSelect');
-  const btnQuickLoadSaved = document.getElementById('btnQuickLoadSaved');
-
-  function loadSavedPdfById(targetId) {
-    if (!targetId) return;
-    const clean = String(targetId).trim().toUpperCase();
-    const hit = (allRecords && allRecords.find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean))
-      || OFFICIAL_SAVED_RECORDS.find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean)
-      || getLocalRecords().find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean);
-    if (hit) {
-      loadData(hit);
-      showToast(`Loaded ${clean}: ${hit.clientName || ''}`, 'success');
-    }
-  }
-
-  if (quickLoadSavedPdfSelect) {
-    quickLoadSavedPdfSelect.addEventListener('change', () => {
-      loadSavedPdfById(quickLoadSavedPdfSelect.value);
-    });
-  }
-
-  if (btnQuickLoadSaved) {
-    btnQuickLoadSaved.addEventListener('click', () => {
-      if (quickLoadSavedPdfSelect) {
-        loadSavedPdfById(quickLoadSavedPdfSelect.value);
-      }
-    });
-  }
-
-  document.querySelectorAll('.btn-quick-pill').forEach(pill => {
-    pill.addEventListener('click', (e) => {
-      const pid = e.currentTarget.dataset.id;
-      loadSavedPdfById(pid);
-    });
-  });
-
   // Load sample button
   btnLoadSample.addEventListener('click', () => {
     loadData(SAMPLE_DATA);
@@ -1822,12 +1771,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedDraft && savedDraft.clientName && savedDraft.referenceId) {
       loadData(savedDraft);
       setAutoSaveStatus('ready', '✓ Draft restored');
-      if (quickLoadSavedPdfSelect) quickLoadSavedPdfSelect.value = savedDraft.referenceId;
     } else {
       const refDoc = (allRecords && allRecords.find(r => r.referenceId === 'GX1722219')) || SAMPLE_DATA;
       loadData(refDoc);
       setAutoSaveStatus('ready', '✓ Official Reference Document loaded');
-      if (quickLoadSavedPdfSelect) quickLoadSavedPdfSelect.value = 'GX1722219';
     }
     updateQrCode();
   });
