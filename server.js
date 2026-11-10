@@ -37,7 +37,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Helper to encode stateless compact record payload for QR codes
 function buildCompactToken(rec) {
   try {
-    const b0 = (rec.beacons && rec.beacons[0]) || {};
+    const beacons = Array.isArray(rec.beacons) && rec.beacons.length > 0 
+      ? rec.beacons 
+      : [{ beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }];
+    const b0 = beacons[0] || {};
+    
+    // Serialize all beacons: name:x:y;name:x:y
+    const beaconsStr = beacons.map(b => `${(b.beaconIndex || '').trim()}:${(b.x || '').trim()}:${(b.y || '').trim()}`).join(';');
+    
     const parts = [
       rec.clientName || '',
       rec.regionalNumber || '',
@@ -46,22 +53,31 @@ function buildCompactToken(rec) {
       rec.stationLocation || 'GWCL, DODOWA',
       rec.date || '03 November 2026',
       rec.surveyorName || '',
-      String(rec.processedPoints || 4),
+      String(rec.processedPoints || beacons.length || 4),
       String(b0.x || '434768.62'),
       String(b0.y || '1230591.872'),
-      b0.beaconIndex || 'SGGA CORS/2025/4',
+      beaconsStr || b0.beaconIndex || 'SGGA CORS/2025/4',
       rec.referenceId || rec.id || '',
       rec.amountPaid || 'GHS 150.00',
-      rec.region || 'Greater Accra'
+      rec.region || 'Greater Accra',
+      rec.transactionId || '',
+      rec.smdOfficerName || ''
     ];
-    return Buffer.from(parts.join('|')).toString('base64url');
+    return Buffer.from(parts.join('|'), 'utf8').toString('base64url');
   } catch (e) {
     return '';
   }
 }
 
-function encodeStatelessToken(rec) {
-  return buildCompactToken(rec);
+function constructVerificationUrl(record, baseUrl) {
+  const refId = String(record.referenceId || record.id || '').trim();
+  const token = buildCompactToken(record);
+  const cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
+  
+  if (token) {
+    return `${cleanBase}/verify/${encodeURIComponent(refId)}?d=${token}`;
+  }
+  return `${cleanBase}/verify/${encodeURIComponent(refId)}`;
 }
 
 // Network info endpoint
@@ -126,7 +142,52 @@ app.get('/api/saved-pdfs', (req, res) => {
 
 app.get('/api/records/:id', (req, res) => {
   try {
-    const record = db.getById(req.params.id);
+    let record = db.getById(req.params.id);
+
+    // If record not in db and request includes token parameter ?d=..., decode and warm cache
+    if (!record && req.query.d) {
+      try {
+        const decodedStr = Buffer.from(req.query.d, 'base64url').toString('utf8');
+        if (decodedStr.includes('|')) {
+          const parts = decodedStr.split('|');
+          const cRef = (parts[11] || req.params.id || '').trim();
+          let beacons = [];
+          const rawBeacons = parts[10] || '';
+          if (rawBeacons.includes(':')) {
+            beacons = rawBeacons.split(';').map(item => {
+              const segs = item.split(':');
+              return { beaconIndex: segs[0] || 'SGGA CORS/2025/4', x: segs[1] || '434768.62', y: segs[2] || '1230591.872' };
+            }).filter(b => b.beaconIndex || b.x || b.y);
+          }
+          if (beacons.length === 0) {
+            beacons = [{ beaconIndex: parts[10] || 'SGGA CORS/2025/4', x: parts[8] || '434768.62', y: parts[9] || '1230591.872' }];
+          }
+          const pts = parseInt(parts[7] || String(beacons.length) || '4', 10);
+          const calcAmt = 150 + Math.max(0, pts - 4) * 20;
+          record = {
+            id: cRef,
+            referenceId: cRef,
+            clientName: parts[0] || '',
+            regionalNumber: parts[1] || '',
+            verificationCode: parts[2] || '',
+            locality: parts[3] || '',
+            stationLocation: parts[4] || 'GWCL, DODOWA',
+            date: parts[5] || '03 November 2026',
+            surveyorName: parts[6] || '',
+            processedPoints: pts,
+            amountPaid: parts[12] || `GHS ${calcAmt.toFixed(2)}`,
+            region: parts[13] || 'Greater Accra',
+            transactionId: parts[14] || `job_${cRef.toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
+            smdOfficerName: parts[15] || '',
+            beacons: beacons,
+            status: 'ACTIVE_VERIFIED',
+            updatedAt: new Date().toISOString()
+          };
+          db.save(record);
+        }
+      } catch (e) {}
+    }
+
     if (!record) {
       return res.status(404).json({ success: false, message: 'Record not found' });
     }
@@ -216,14 +277,8 @@ app.post('/api/records', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    // Known official records always use the clean official URL matching the sample PDF
-    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
-    const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
-    const compactToken = isKnownSeed ? '' : buildCompactToken(record);
-    const verificationUrl = compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
-
+    // Construct universal self-verifying URL carrying complete record state
+    const verificationUrl = constructVerificationUrl(record, baseUrl);
     record.verificationUrl = verificationUrl;
 
     const saved = db.save(record);
@@ -333,14 +388,8 @@ app.post('/api/generate-pdf', async (req, res) => {
       : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
 
-    // Clean verification URL: known records use official clean URL, custom ones include self-verifying token
-    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
-    const isKnownSeed = Boolean(db.getById(referenceId)) || knownSeeds.includes(referenceId.toUpperCase());
-    const compactToken = isKnownSeed ? '' : buildCompactToken(record);
-    const verificationUrl = compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(referenceId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(referenceId)}`;
-
+    // Universal self-verifying URL: encodes complete document payload so phone scans always verify immediately
+    const verificationUrl = constructVerificationUrl(record, baseUrl);
     record.verificationUrl = verificationUrl;
 
     // Cache record in db
@@ -416,13 +465,7 @@ app.get('/api/records/:id/pdf', async (req, res) => {
       : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
     const customBaseUrl = req.query.baseUrl ? req.query.baseUrl.replace(/\/$/, '') : null;
     const targetBase = customBaseUrl || record.baseUrl || fallbackBase;
-    const refKey = String(record.referenceId || record.id || '').toUpperCase();
-    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
-    const isKnownSeed = Boolean(db.getById(refKey)) || knownSeeds.includes(refKey);
-    const compactToken = isKnownSeed ? '' : buildCompactToken(record);
-    const verificationUrl = compactToken
-      ? `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}?d=${compactToken}`
-      : `${targetBase}/verify/${encodeURIComponent(record.referenceId || record.id)}`;
+    const verificationUrl = constructVerificationUrl(record, targetBase);
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
     const refIdClean = (record.referenceId || record.id || 'EX_DATA').replace(/[^a-zA-Z0-9_-]/g, '_');

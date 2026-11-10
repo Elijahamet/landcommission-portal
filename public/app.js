@@ -528,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Update Live Preview (Both Slip 1 and Slip 2)
   let qrDebounceTimer = null;
-  function updateLivePreview() {
+  function updateLivePreview(immediate = false) {
     const refId = refIdInput.value.trim() || 'GX-------';
     const regNo = regionalNoInput.value.trim() || '------------------';
     const vCode = vCodeInput.value.trim() || '------------------';
@@ -569,16 +569,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Update QR Code with debouncing
-    clearTimeout(qrDebounceTimer);
-    qrDebounceTimer = setTimeout(() => {
+    if (immediate) {
+      clearTimeout(qrDebounceTimer);
       updateQrCode();
-    }, 200);
+    } else {
+      clearTimeout(qrDebounceTimer);
+      qrDebounceTimer = setTimeout(() => {
+        updateQrCode();
+      }, 150);
+    }
   }
 
-  // Encode compact pipe-delimited token so verification page renders 100% reliably even on cold serverless instances
+  function toBase64Url(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  // Encode compact pipe-delimited token so verification page renders 100% reliably anywhere
   function buildCompactToken(r) {
     try {
-      const b0 = (r.beacons && r.beacons[0]) || {};
+      const beacons = Array.isArray(r.beacons) && r.beacons.length > 0 
+        ? r.beacons 
+        : [{ beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }];
+      const b0 = beacons[0] || {};
+      const beaconsStr = beacons.map(b => `${(b.beaconIndex || '').trim()}:${(b.x || '').trim()}:${(b.y || '').trim()}`).join(';');
+      
       const parts = [
         r.clientName || '',
         r.regionalNumber || '',
@@ -587,35 +606,35 @@ document.addEventListener('DOMContentLoaded', () => {
         r.stationLocation || 'GWCL, DODOWA',
         r.date || '03 November 2026',
         r.surveyorName || '',
-        String(r.processedPoints || 4),
+        String(r.processedPoints || beacons.length || 4),
         String(b0.x || '434768.62'),
         String(b0.y || '1230591.872'),
-        b0.beaconIndex || 'SGGA CORS/2025/4',
+        beaconsStr || b0.beaconIndex || 'SGGA CORS/2025/4',
         r.referenceId || r.id || '',
         r.amountPaid || 'GHS 150.00',
-        r.region || 'Greater Accra'
+        r.region || 'Greater Accra',
+        r.transactionId || '',
+        r.smdOfficerName || ''
       ];
-      return window.btoa(unescape(encodeURIComponent(parts.join('|'))))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+      return toBase64Url(parts.join('|'));
     } catch (e) {
       return '';
     }
   }
 
-  // Update QR Code image source (known records use clean short URL matching sample, custom ones use compact token)
-  function updateQrCode() {
-    const currentRec = getCurrentFormData();
-    const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-    const refId = (currentRec.referenceId || '').trim();
-    const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
-    const isKnownSeed = knownSeeds.includes(refId.toUpperCase());
-    const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
-    
-    const targetUrl = compactToken
+  function constructVerificationUrl(r, customBase) {
+    const baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
+    const refId = (r.referenceId || r.id || '').trim();
+    const compactToken = buildCompactToken(r);
+    return compactToken
       ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
       : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+  }
+
+  // Update QR Code image source (always carries stateless token so phone scans never 404)
+  function updateQrCode() {
+    const currentRec = getCurrentFormData();
+    const targetUrl = constructVerificationUrl(currentRec);
     const qrSrc = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
@@ -624,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modalQrImg) modalQrImg.src = `/api/qr?text=${encodeURIComponent(targetUrl)}&format=svg`;
     if (modalQrUrlText) modalQrUrlText.textContent = targetUrl;
+    return targetUrl;
   }
 
   // Auto Generator Buttons
@@ -707,6 +727,27 @@ document.addEventListener('DOMContentLoaded', () => {
       updateLivePreview();
       triggerAutoSave();
     });
+  });
+
+  // Smart collision prevention: When editing a client name,
+  // if current referenceId already belongs to a previously saved different client, auto-generate fresh unique Reference ID!
+  clientNameInput.addEventListener('blur', () => {
+    const val = clientNameInput.value.trim();
+    if (!val) return;
+    const local = getLocalRecords();
+    const currentRef = (refIdInput.value || '').trim().toUpperCase();
+    const conflict = local.find(r => 
+      String(r.referenceId || r.id).trim().toUpperCase() === currentRef &&
+      r.clientName &&
+      r.clientName.trim().toLowerCase() !== val.toLowerCase()
+    );
+    if (conflict) {
+      const newRef = generateUniqueRefId();
+      refIdInput.value = newRef;
+      vCodeInput.value = generateVerificationCode(currentBeacons[0] ? currentBeacons[0].beaconIndex : '');
+      updateLivePreview(true);
+      showToast(`✨ Generated fresh Reference ID ${newRef} for new client: ${val}`, 'info');
+    }
   });
 
   // Process points input events: from 4 upward, automatically calculates amount
@@ -1071,8 +1112,23 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Generating official PDF in browser...', 'info');
       const activeDraft = getCurrentFormData();
       loadData(rec);
-      // Wait for QR code image and DOM to settle
-      await new Promise(resolve => setTimeout(resolve, 80));
+      updateLivePreview(true);
+
+      // Force preview QR images to load current record's QR and wait for load
+      const qrTargetUrl = constructVerificationUrl(rec);
+      const qrSrc = `/api/qr?text=${encodeURIComponent(qrTargetUrl)}&format=svg`;
+      const qrImages = document.querySelectorAll('.preview-qr-img');
+      await Promise.all(Array.from(qrImages).map(img => {
+        return new Promise(resolve => {
+          if (img.src.includes(encodeURIComponent(qrTargetUrl)) && img.complete) {
+            return resolve();
+          }
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = qrSrc;
+          setTimeout(resolve, 300);
+        });
+      }));
 
       const element = document.getElementById('printableA4Document');
       const opt = {
@@ -1118,6 +1174,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1200);
   }
 
+  // Collision protection helper: ensures no two different clients share the same reference ID
+  function ensureUniqueRefIdForCurrentClient() {
+    const local = getLocalRecords();
+    const cleanRef = (refIdInput.value || '').trim().toUpperCase();
+    const clientNameVal = clientNameInput.value.trim().toLowerCase();
+    const existingWithDiffClient = local.find(r => 
+      String(r.referenceId || r.id).trim().toUpperCase() === cleanRef &&
+      r.clientName && 
+      r.clientName.trim().toLowerCase() !== clientNameVal
+    );
+    if (existingWithDiffClient) {
+      const newRef = generateUniqueRefId();
+      refIdInput.value = newRef;
+      vCodeInput.value = generateVerificationCode(currentBeacons[0] ? currentBeacons[0].beaconIndex : '');
+      updateLivePreview(true);
+      showToast(`✓ Assigned unique Reference ID: ${newRef} for ${clientNameInput.value.trim()}`, 'info');
+    }
+  }
+
   // 6b. Download PDF from Form / Toolbar
   async function downloadPdf() {
     if (!clientNameInput.value.trim()) {
@@ -1131,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    ensureUniqueRefIdForCurrentClient();
     const currentRec = getCurrentFormData();
     await executeAutoSave();
     await downloadPdfForRecord(currentRec, btnDownloadPdf);
@@ -1147,6 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (clientNameInput.value.trim()) {
+      ensureUniqueRefIdForCurrentClient();
       try {
         await executeAutoSave();
       } catch (e) {}
@@ -1162,16 +1239,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const currentRec = getCurrentFormData();
       await executeAutoSave();
-      const baseUrl = (baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-      const refId = (currentRec.referenceId || '').trim();
-      const knownSeeds = ['GX1722219', 'GX7109723', 'GX2193345', 'GX4950255', 'GX8888888', 'GX8967032', 'GX9991111'];
-    const isKnownSeed = knownSeeds.includes(refId.toUpperCase());
-      const compactToken = isKnownSeed ? '' : buildCompactToken(currentRec);
-      const verifyUrl = compactToken
-        ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
-        : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+      const verifyUrl = constructVerificationUrl(currentRec);
       window.open(verifyUrl, '_blank');
     } catch (e) {
+      showToast('Error opening verification: ' + e.message, 'error');
+    }
+  });
       showToast('Error opening verification: ' + e.message, 'error');
     }
   });
@@ -1260,6 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('div');
       item.className = 'record-item';
       const refId = escapeHtml(r.referenceId || r.id);
+      const vUrl = constructVerificationUrl(r);
       item.innerHTML = `
         <div class="record-meta" style="flex: 1; min-width: 200px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -1280,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="btn btn-secondary btn-sm btn-load-record" data-id="${refId}" title="Open in Live Preview & Editor">
             👁️ View
           </button>
-          <a href="/verify/${refId}" target="_blank" class="btn btn-secondary btn-sm" title="Open Verification Gateway" style="text-decoration: none;">
+          <a href="${vUrl}" target="_blank" class="btn btn-secondary btn-sm" title="Open Verification Gateway" style="text-decoration: none;">
             📱 Verify
           </a>
           <button class="btn btn-secondary btn-sm btn-delete-record" data-id="${refId}" style="color: #ef4444;" title="Delete this record">

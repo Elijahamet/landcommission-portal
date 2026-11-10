@@ -645,7 +645,13 @@
       <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
       <h3 style="font-size: 17px; color: #dc2626; margin-bottom: 6px;">Record Not Found</h3>
       <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">This receipt could not be found in the EX DATA registry.</p>
-      <a href="/" class="btn-get-started" style="display: inline-block; width: auto; padding: 8px 18px;">Go to Portal</a>
+      <div style="max-width: 320px; margin: 0 auto 18px auto;">
+        <form id="manualVerifyForm" onsubmit="event.preventDefault(); window.manualLookupRecord();" style="display: flex; gap: 6px;">
+          <input type="text" id="manualRefIdInput" placeholder="Enter Reference ID (e.g. GX1722219)" style="flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; text-transform: uppercase;">
+          <button type="submit" class="btn-get-started" style="width: auto; padding: 10px 16px; margin: 0; white-space: nowrap;">Search</button>
+        </form>
+      </div>
+      <a href="/" class="btn-contact-support" style="display: inline-block; width: auto; padding: 8px 18px;">Go to Portal</a>
     </div>
 
     <!-- Verified Record Display -->

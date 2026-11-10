@@ -188,6 +188,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     return null;
   }
 
+  function fromBase64Url(str) {
+    if (!str) return '';
+    try {
+      let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const binary = window.atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      try {
+        let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        return decodeURIComponent(escape(window.atob(b64)));
+      } catch (e2) {
+        return '';
+      }
+    }
+  }
+
   // 1. Extract Record ID and optional compressed token from URL (/verify/:id, /ghanacorsnet-verify/:id, or ?id=... and ?d=...)
   let id = '';
   const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -197,23 +219,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     id = decodeURIComponent(pathParts[0]);
   } else {
     const urlParams = new URLSearchParams(window.location.search);
-    id = urlParams.get('id') || '';
+    id = urlParams.get('id') || urlParams.get('ref') || '';
   }
 
   const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('d');
+  const token = urlParams.get('d') || urlParams.get('token') || '';
 
   function decodeToken(tok) {
     if (!tok) return null;
     try {
-      let b64 = tok.replace(/-/g, '+').replace(/_/g, '/');
-      while (b64.length % 4) b64 += '=';
-      const decodedStr = decodeURIComponent(escape(window.atob(b64)));
+      const decodedStr = fromBase64Url(tok);
+      if (!decodedStr) return null;
       
-      // 1. Pipe-delimited compact string: client|reg|vcode|loc|st|date|surv|pts|bx|by|beaconIndex|refId|amount|region
+      // 1. Pipe-delimited compact string: client|reg|vcode|loc|st|date|surv|pts|bx|by|beaconIndex|refId|amount|region|tx|smd
       if (decodedStr.includes('|')) {
         const parts = decodedStr.split('|');
-        const cRef = parts[11] || id;
+        const cRef = (parts[11] || id || '').trim();
+
+        let beacons = [];
+        const rawBeacons = parts[10] || '';
+        if (rawBeacons.includes(':')) {
+          beacons = rawBeacons.split(';').map(item => {
+            const segs = item.split(':');
+            return {
+              beaconIndex: segs[0] || 'SGGA CORS/2025/4',
+              x: segs[1] || '434768.62',
+              y: segs[2] || '1230591.872'
+            };
+          }).filter(b => b.beaconIndex || b.x || b.y);
+        }
+
+        if (beacons.length === 0) {
+          beacons = [{
+            beaconIndex: parts[10] || 'SGGA CORS/2025/4',
+            x: parts[8] || '434768.62',
+            y: parts[9] || '1230591.872'
+          }];
+        }
+
+        const pts = parseInt(parts[7] || String(beacons.length) || '4', 10);
+        const calcAmt = 150 + Math.max(0, pts - 4) * 20;
+
         return {
           referenceId: cRef,
           id: cRef,
@@ -224,23 +270,21 @@ document.addEventListener('DOMContentLoaded', async () => {
           stationLocation: parts[4] || 'GWCL, DODOWA',
           date: parts[5] || '03 November 2026',
           surveyorName: parts[6] || '',
-          processedPoints: parseInt(parts[7] || '4', 10),
-          beacons: [{
-            beaconIndex: parts[10] || 'SGGA CORS/2025/4',
-            x: parts[8] || '434768.62',
-            y: parts[9] || '1230591.872'
-          }],
-          amountPaid: parts[12] || 'GHS 150.00',
+          processedPoints: pts,
+          beacons: beacons,
+          amountPaid: parts[12] || `GHS ${calcAmt.toFixed(2)}`,
           region: parts[13] || 'Greater Accra',
-          transactionId: `job_${cRef.toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
-          status: 'ACTIVE_VERIFIED'
+          transactionId: parts[14] || `job_${cRef.toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
+          smdOfficerName: parts[15] || '',
+          status: 'ACTIVE_VERIFIED',
+          fromToken: true
         };
       }
 
       // 2. JSON array or object
       const p = JSON.parse(decodedStr);
       if (Array.isArray(p)) {
-        const cRef = p[11] || id;
+        const cRef = (p[11] || id || '').trim();
         return {
           referenceId: cRef,
           id: cRef,
@@ -260,26 +304,29 @@ document.addEventListener('DOMContentLoaded', async () => {
           amountPaid: p[12] || 'GHS 150.00',
           region: p[13] || 'Greater Accra',
           transactionId: `job_${cRef.toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
-          status: 'ACTIVE_VERIFIED'
+          status: 'ACTIVE_VERIFIED',
+          fromToken: true
         };
       }
 
       return {
-        referenceId: p.ref || id,
-        id: p.ref || id,
-        clientName: p.client,
-        regionalNumber: p.reg,
-        verificationCode: p.vcode,
-        locality: p.loc,
-        region: p.region || 'Greater Accra',
-        processedPoints: p.pts || 4,
-        amountPaid: p.amt || 'GHS 150.00',
-        date: p.date || '03 November 2026',
-        surveyorName: p.surv,
-        transactionId: p.tx || `job_${(p.ref || id).toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
+        referenceId: p.ref || p.r || id,
+        id: p.ref || p.r || id,
+        clientName: p.client || p.c || '',
+        regionalNumber: p.reg || p.n || '',
+        verificationCode: p.vcode || p.v || '',
+        locality: p.loc || p.l || '',
+        region: p.region || p.rg || 'Greater Accra',
+        processedPoints: p.pts || p.p || 4,
+        amountPaid: p.amt || p.a || 'GHS 150.00',
+        date: p.date || p.d || '03 November 2026',
+        surveyorName: p.surv || p.sv || '',
+        transactionId: p.tx || p.t || `job_${(p.ref || id).toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`,
         beacons: p.b || [{ beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }],
-        stationLocation: p.st || p.stationLocation || 'GWCL, DODOWA',
-        status: 'ACTIVE_VERIFIED'
+        stationLocation: p.st || p.s || p.stationLocation || 'GWCL, DODOWA',
+        smdOfficerName: p.smd || p.sm || '',
+        status: 'ACTIVE_VERIFIED',
+        fromToken: true
       };
     } catch (e) {
       console.warn('Could not decode token parameter:', e);
@@ -288,15 +335,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const tokenRecord = decodeToken(token);
-  const cleanId = String(id || '').trim().toUpperCase();
+  const cleanId = String(id || (tokenRecord && tokenRecord.referenceId) || '').trim().toUpperCase();
   const catalogRecord = cleanId ? OFFICIAL_REGISTRY_CATALOGUE[cleanId] : null;
   const localRecord = cleanId ? getLocalFallback(cleanId) : null;
 
-  // Immediate display priority: Token > Official Catalog > LocalStorage
+  // Immediate authoritative display priority:
+  // Token (direct from scanned physical sheet) > Official Hardcoded Catalog > LocalStorage
   let immediateRecord = tokenRecord || catalogRecord || localRecord;
   if (immediateRecord) {
     renderRecord(immediateRecord);
-    // Background sync to server so server cache is warmed up
+    // Background sync to server so server database is populated
     try {
       fetch('/api/records', {
         method: 'POST',
@@ -306,26 +354,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {}
   }
 
-  // Fetch updated record from API
-  try {
-    const targetId = id || (immediateRecord && immediateRecord.referenceId);
-    if (targetId) {
-      const res = await fetch(`/api/records/${encodeURIComponent(targetId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.record) {
-          renderRecord(data.record);
+  // Only query server API if we do NOT have a verified token record!
+  // This guarantees that a scanned sheet's data is NEVER overwritten by a stale or mismatched record on the server!
+  if (!tokenRecord) {
+    try {
+      const targetId = cleanId;
+      if (targetId) {
+        const res = await fetch(`/api/records/${encodeURIComponent(targetId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.record) {
+            renderRecord(data.record);
+          }
+        } else if (!immediateRecord) {
+          throw new Error('Record not found');
         }
       } else if (!immediateRecord) {
-        throw new Error('Record not found');
+        throw new Error('No record ID specified');
       }
-    } else if (!immediateRecord) {
-      throw new Error('No record ID specified');
-    }
-  } catch (err) {
-    console.warn('API lookup note:', err.message);
-    if (!immediateRecord) {
-      showError();
+    } catch (err) {
+      console.warn('API lookup note:', err.message);
+      if (!immediateRecord) {
+        showError();
+      }
     }
   }
 
@@ -395,6 +446,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (recordContent) recordContent.style.display = 'none';
     if (errorBox) errorBox.style.display = 'block';
   }
+
+  // Manual Reference ID search from error screen
+  window.manualLookupRecord = async function() {
+    const input = document.getElementById('manualRefIdInput');
+    const query = input ? input.value.trim().toUpperCase() : '';
+    if (!query) return;
+
+    loadingBox.style.display = 'block';
+    if (errorBox) errorBox.style.display = 'none';
+
+    // 1. Check official catalog
+    if (OFFICIAL_REGISTRY_CATALOGUE[query]) {
+      renderRecord(OFFICIAL_REGISTRY_CATALOGUE[query]);
+      return;
+    }
+
+    // 2. Check local fallback
+    const localHit = getLocalFallback(query);
+    if (localHit) {
+      renderRecord(localHit);
+      return;
+    }
+
+    // 3. Query API
+    try {
+      const res = await fetch(`/api/records/${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.record) {
+          renderRecord(data.record);
+          return;
+        }
+      }
+    } catch (e) {}
+
+    showError();
+  };
 
   function escapeHtml(str) {
     return String(str || '')

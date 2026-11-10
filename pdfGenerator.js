@@ -268,7 +268,7 @@ async function generateSlipPDF(record, verificationUrl) {
       }
 
       // Render Slip 1 (Top / Official Copy)
-      renderSlip(28);
+      renderSlip(24);
 
       // Cut Line Divider in the middle of page
       const midY = 412;
@@ -285,7 +285,7 @@ async function generateSlipPDF(record, verificationUrl) {
         });
 
       // Render Slip 2 (Bottom / Customer Copy)
-      renderSlip(430);
+      renderSlip(425);
 
       doc.end();
     } catch (err) {
