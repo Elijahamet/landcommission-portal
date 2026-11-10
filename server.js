@@ -116,21 +116,18 @@ function buildCompactToken(rec) {
 }
 
 function constructVerificationUrl(record, baseUrl) {
+  const cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
+  const refId = String(record.referenceId || record.id || '').trim();
   if (record && record.verificationUrl && typeof record.verificationUrl === 'string' && record.verificationUrl.startsWith('http')) {
-    if (baseUrl && !record.verificationUrl.startsWith(baseUrl.replace(/\/$/, ''))) {
+    // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
+    const cleanStored = record.verificationUrl.split('?')[0];
+    if (baseUrl && !cleanStored.startsWith(cleanBase)) {
       try {
-        const parsed = new URL(record.verificationUrl);
-        return `${baseUrl.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
+        const parsed = new URL(cleanStored);
+        return `${cleanBase}${parsed.pathname}`;
       } catch (e) {}
     }
-    return record.verificationUrl;
-  }
-  const refId = String(record.referenceId || record.id || '').trim();
-  const token = buildCompactToken(record);
-  const cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
-  
-  if (token) {
-    return `${cleanBase}/verify/${encodeURIComponent(refId)}?d=${token}`;
+    return cleanStored;
   }
   return `${cleanBase}/verify/${encodeURIComponent(refId)}`;
 }
@@ -381,7 +378,8 @@ app.get('/api/qr', async (req, res) => {
   try {
     const publicUrl = getPublicUrl();
     const defaultHost = publicUrl || `http://${LOCAL_IP}:${PORT}`;
-    const text = req.query.text || defaultHost;
+    const rawText = req.query.text || defaultHost;
+    const text = rawText.split('?')[0];
     const format = (req.query.format || 'png').toLowerCase();
 
     if (format === 'svg') {

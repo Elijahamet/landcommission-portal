@@ -83,8 +83,9 @@ async function generateSlipPDF(record, verificationUrl) {
       doc.on('data', b => buffers.push(b));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      // Target URL for vector QR code
-      const qrTarget = verificationUrl || record.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${record.id || record.referenceId}`;
+      // Target URL for vector QR code (guaranteed clean Version 3 URL, never bloated by tokens)
+      const rawTarget = verificationUrl || record.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${record.id || record.referenceId}`;
+      const qrTarget = rawTarget.split('?')[0];
 
       const pageWidth = doc.page.width;
       const leftMargin = 38;

@@ -524,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load specific data into form
   function loadData(data) {
-    currentLoadedVerificationUrl = data.verificationUrl || '';
+    currentLoadedVerificationUrl = (data.verificationUrl || '').split('?')[0];
     refIdInput.value = data.referenceId || generateUniqueRefId();
     regionalNoInput.value = data.regionalNumber || '';
     vCodeInput.value = data.verificationCode || generateVerificationCode(data.beacons && data.beacons[0] ? data.beacons[0].beaconIndex : '');
@@ -776,21 +776,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function constructVerificationUrl(r, customBase) {
-    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
-      if (customBase && !r.verificationUrl.startsWith(customBase.replace(/\/$/, ''))) {
-        try {
-          const parsed = new URL(r.verificationUrl);
-          return `${customBase.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
-        } catch (e) {}
-      }
-      return r.verificationUrl;
-    }
     const baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
     const refId = (r.referenceId || r.id || '').trim();
-    const compactToken = buildCompactToken(r);
-    return compactToken
-      ? `${baseUrl}/verify/${encodeURIComponent(refId)}?d=${compactToken}`
-      : `${baseUrl}/verify/${encodeURIComponent(refId)}`;
+    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
+      // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
+      const cleanStoredUrl = r.verificationUrl.split('?')[0];
+      if (customBase && !cleanStoredUrl.startsWith(baseUrl)) {
+        try {
+          const parsed = new URL(cleanStoredUrl);
+          return `${baseUrl}${parsed.pathname}`;
+        } catch (e) {}
+      }
+      return cleanStoredUrl;
+    }
+    return `${baseUrl}/verify/${encodeURIComponent(refId)}`;
   }
 
   // Dedicated offscreen container for instant zero-latency client-side QR generation
@@ -804,6 +803,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!targetUrl) {
       targetUrl = 'https://ghanacorsnet-verify.vercel.app/verify/GX1722219';
     }
+    // Clean targetUrl of any query string parameters to guarantee Version 3 (29x29) spacious QR
+    targetUrl = targetUrl.split('?')[0];
     // 1. Try instant client-side QR code generation as 100% vector SVG
     if (window.QRCode && typeof window.QRCode === 'function') {
       try {
@@ -1224,10 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
                   // Merge preserving all user-entered form details
                   const merged = existing ? { ...existing, ...r } : { ...r };
 
-                  // Ensure destination URL is strictly preserved
-                  if (!merged.verificationUrl || typeof merged.verificationUrl !== 'string' || !merged.verificationUrl.startsWith('http')) {
-                    merged.verificationUrl = constructVerificationUrl(merged);
-                  }
+                  // Ensure clean Version 3 destination URL without legacy long ?d= tokens
+                  merged.verificationUrl = constructVerificationUrl(merged);
 
                   // Purge any stale raster image data to guarantee pure vector SVG rendering
                   delete merged.qrCode;
@@ -1262,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
               delete draft.qrImage;
               delete draft.rasterQr;
               delete draft.qrCanvas;
-              if (!draft.verificationUrl && draft.referenceId) {
+              if (draft.referenceId) {
                 draft.verificationUrl = constructVerificationUrl(draft);
               }
               localStorage.setItem(dk, JSON.stringify(draft));
