@@ -144,24 +144,138 @@ document.addEventListener('DOMContentLoaded', () => {
     ) || null;
   }
 
-  // Sample data matching official document (Image 1)
-  const SAMPLE_DATA = {
-    referenceId: 'GX7109723',
-    regionalNumber: 'SGGA. G5098 26',
-    verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
-    date: '03 November 2026',
-    processedPoints: 4,
-    clientName: 'ALBERT WALE & AKUA SEKYERAA APPIAH',
-    region: 'Greater Accra',
-    locality: 'MIOTSO-PRAMPRAM',
-    stationLocation: 'GWCL, DODOWA',
-    amountPaid: 'GHS 150.00',
-    surveyorName: 'AISSI KÉVINOS',
-    smdOfficerName: '',
-    beacons: [
-      { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
-    ]
-  };
+  // Official permanent archive of verified documents matching saved PDFs
+  const OFFICIAL_SAVED_RECORDS = [
+    {
+      referenceId: 'GX1722219',
+      id: 'GX1722219',
+      regionalNumber: 'SGGA.G3488/2026',
+      verificationCode: 'SGGA EX 19 1A/26/10/14/150-65',
+      date: '14 October 2026',
+      processedPoints: 4,
+      clientName: 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
+      region: 'Greater Accra',
+      locality: 'OYARIFA',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'DANNY MENSA',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX7109723',
+      id: 'GX7109723',
+      regionalNumber: 'SGGA. G5098 26',
+      verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
+      date: '03 November 2026',
+      processedPoints: 4,
+      clientName: 'ALBERT WALE & AKUA SEKYERAA APPIAH',
+      region: 'Greater Accra',
+      locality: 'MIOTSO-PRAMPRAM',
+      stationLocation: 'SMD-EXAMINATION, ACCRA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'AISSI KÉVINOS',
+      beacons: [
+        { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX2193345',
+      id: 'GX2193345',
+      regionalNumber: 'SGGA. G2222 26',
+      verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
+      date: '03 November 2026',
+      processedPoints: 5,
+      clientName: 'DAVID AGBEME',
+      region: 'Greater Accra',
+      locality: 'DODOWA',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 170.00',
+      surveyorName: 'MAXWELL',
+      beacons: [
+        { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX4950255',
+      id: 'GX4950255',
+      regionalNumber: 'SGGA.G3488/2026',
+      verificationCode: 'SGGA EX 19 1A/26/11/06/858-26',
+      date: '06 November 2026',
+      processedPoints: 4,
+      clientName: 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
+      region: 'Greater Accra',
+      locality: 'OYARIFA',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'DANNY MENSA',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX8888888',
+      id: 'GX8888888',
+      regionalNumber: 'SGGA. G7777 26',
+      verificationCode: 'SGGA CORS/2025/4/26/11/07/295-17',
+      date: '07 November 2026',
+      processedPoints: 4,
+      clientName: 'NEW TEST OFFICER',
+      region: 'Greater Accra',
+      locality: 'ACCRA',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'TESTER',
+      beacons: [
+        { beaconIndex: 'SGGA CORS/2025/4', x: '100', y: '200' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX8967032',
+      id: 'GX8967032',
+      regionalNumber: 'SGGA.G9999/2026',
+      verificationCode: 'SGGA EX 19 1A/26/11/06/576-68',
+      date: '06 November 2026',
+      processedPoints: 4,
+      clientName: 'KWAME ASANTE',
+      region: 'Greater Accra',
+      locality: 'ACCRA CENTRAL',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'JOHN DOE',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    },
+    {
+      referenceId: 'GX9991111',
+      id: 'GX9991111',
+      regionalNumber: 'SGGA.G1111/2026',
+      verificationCode: 'SGGA EX 19 1A/26/11/06/100-10',
+      date: '06 November 2026',
+      processedPoints: 4,
+      clientName: 'TEST CLIENT COLD START',
+      region: 'Greater Accra',
+      locality: 'TEMA',
+      stationLocation: 'GWCL, DODOWA',
+      amountPaid: 'GHS 150.00',
+      surveyorName: 'COLD START SURVEYOR',
+      beacons: [
+        { beaconIndex: 'SGGA EX 19 1A', x: '100', y: '200' }
+      ],
+      status: 'ACTIVE_VERIFIED'
+    }
+  ];
+
+  // Default sample data matching official reference PDF (GX1722219)
+  const SAMPLE_DATA = OFFICIAL_SAVED_RECORDS[0];
 
   // Helper to generate a unique Reference ID
   function generateUniqueRefId() {
@@ -426,6 +540,22 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBeaconsEditor();
     updateLivePreview();
     triggerAutoSave();
+
+    // Sync quick-select dropdown and pills with currently loaded record
+    const loadedRef = String(data.referenceId || data.id || '').trim().toUpperCase();
+    const quickSelectEl = document.getElementById('quickLoadSavedPdfSelect');
+    if (quickSelectEl && loadedRef) {
+      quickSelectEl.value = loadedRef;
+    }
+    document.querySelectorAll('.btn-quick-pill').forEach(pill => {
+      if (pill.dataset.id === loadedRef) {
+        pill.style.background = '#166534';
+        pill.style.color = '#ffffff';
+      } else {
+        pill.style.background = '#e2e8f0';
+        pill.style.color = '#1e293b';
+      }
+    });
   }
 
   // 3. Render Beacons in Editor
@@ -580,6 +710,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function toBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
   function toBase64Url(str) {
     const bytes = new TextEncoder().encode(str);
     let binary = '';
@@ -654,6 +793,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(offscreenQrDiv);
 
   function getQrDataUrlOrSrc(targetUrl) {
+    if (!targetUrl) {
+      targetUrl = 'https://ghanacorsnet-verify.vercel.app/verify/GX1722219';
+    }
     // 1. Try instant client-side QR code generation as 100% vector SVG
     if (window.QRCode && typeof window.QRCode === 'function') {
       try {
@@ -680,7 +822,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
           const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="100%" height="100%" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/>${rects.join('')}</svg>`;
-          return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+          try {
+            return `data:image/svg+xml;base64,${toBase64(svgStr)}`;
+          } catch (e) {
+            return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+          }
         }
 
         const qrCanvas = offscreenQrDiv.querySelector('canvas');
@@ -708,6 +854,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalQrSrc = getQrDataUrlOrSrc(targetUrl);
 
     document.querySelectorAll('.preview-qr-img').forEach(img => {
+      img.onerror = () => {
+        img.onerror = null;
+        img.src = `https://ghanacorsnet-verify.vercel.app/api/qr?text=${encodeURIComponent(targetUrl)}&format=png&size=360`;
+      };
       img.src = finalQrSrc;
     });
 
@@ -849,6 +999,43 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAmountFromPoints();
     updateLivePreview();
     triggerAutoSave();
+  });
+
+  // Quick Saved PDFs & Documents Selector
+  const quickLoadSavedPdfSelect = document.getElementById('quickLoadSavedPdfSelect');
+  const btnQuickLoadSaved = document.getElementById('btnQuickLoadSaved');
+
+  function loadSavedPdfById(targetId) {
+    if (!targetId) return;
+    const clean = String(targetId).trim().toUpperCase();
+    const hit = (allRecords && allRecords.find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean))
+      || OFFICIAL_SAVED_RECORDS.find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean)
+      || getLocalRecords().find(r => String(r.referenceId || r.id).trim().toUpperCase() === clean);
+    if (hit) {
+      loadData(hit);
+      showToast(`Loaded ${clean}: ${hit.clientName || ''}`, 'success');
+    }
+  }
+
+  if (quickLoadSavedPdfSelect) {
+    quickLoadSavedPdfSelect.addEventListener('change', () => {
+      loadSavedPdfById(quickLoadSavedPdfSelect.value);
+    });
+  }
+
+  if (btnQuickLoadSaved) {
+    btnQuickLoadSaved.addEventListener('click', () => {
+      if (quickLoadSavedPdfSelect) {
+        loadSavedPdfById(quickLoadSavedPdfSelect.value);
+      }
+    });
+  }
+
+  document.querySelectorAll('.btn-quick-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      const pid = e.currentTarget.dataset.id;
+      loadSavedPdfById(pid);
+    });
   });
 
   // Load sample button
@@ -1337,9 +1524,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error opening verification: ' + e.message, 'error');
     }
   });
-      showToast('Error opening verification: ' + e.message, 'error');
-    }
-  });
 
   // 9. QR Assistant Modal
   btnOpenQrModal.addEventListener('click', () => {
@@ -1382,6 +1566,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Merge and deduplicate by referenceId
     const recordMap = new Map();
+
+    // 1. Always ensure all official saved documents & PDFs are in the catalog
+    OFFICIAL_SAVED_RECORDS.forEach(r => {
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (key) recordMap.set(key, r);
+    });
+
     serverRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
       if (key) recordMap.set(key, r);
@@ -1628,16 +1819,17 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     }
 
-    if (savedDraft && savedDraft.clientName) {
+    if (savedDraft && savedDraft.clientName && savedDraft.referenceId) {
       loadData(savedDraft);
       setAutoSaveStatus('ready', '✓ Draft restored');
-    } else if (allRecords && allRecords.length > 0) {
-      loadData(allRecords[0]);
-      setAutoSaveStatus('ready', '✓ Official Record loaded');
+      if (quickLoadSavedPdfSelect) quickLoadSavedPdfSelect.value = savedDraft.referenceId;
     } else {
-      loadData(SAMPLE_DATA);
-      setAutoSaveStatus('ready', '✓ Official Record loaded');
+      const refDoc = (allRecords && allRecords.find(r => r.referenceId === 'GX1722219')) || SAMPLE_DATA;
+      loadData(refDoc);
+      setAutoSaveStatus('ready', '✓ Official Reference Document loaded');
+      if (quickLoadSavedPdfSelect) quickLoadSavedPdfSelect.value = 'GX1722219';
     }
+    updateQrCode();
   });
 
 });
