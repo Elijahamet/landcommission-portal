@@ -115,23 +115,36 @@ function buildCompactToken(rec) {
   }
 }
 
+const OFFICIAL_PERMANENT_BASE = 'https://ghanacorsnet-verify.vercel.app';
+
+function isTemporaryOrLocalUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('trycloudflare.com') ||
+    lower.includes('localhost') ||
+    lower.includes('127.0.0.1') ||
+    lower.includes('landcommission-portal.vercel.app') ||
+    lower.includes('ngrok') ||
+    lower.includes('localtunnel') ||
+    lower.includes(':5000') ||
+    lower.includes(':3000') ||
+    /https?:\/\/(172\.|192\.168\.|10\.)/.test(lower)
+  );
+}
+
 function constructVerificationUrl(record, baseUrl) {
-  let cleanBase = (baseUrl || 'https://ghanacorsnet-verify.vercel.app').replace(/\/$/, '');
-  if (cleanBase.includes('landcommission-portal.vercel.app')) {
-    cleanBase = 'https://ghanacorsnet-verify.vercel.app';
-  }
   const refId = String(record.referenceId || record.id || '').trim();
+  let cleanBase = (baseUrl || OFFICIAL_PERMANENT_BASE).replace(/\/$/, '');
+  if (isTemporaryOrLocalUrl(cleanBase)) {
+    cleanBase = OFFICIAL_PERMANENT_BASE;
+  }
+
   if (record && record.verificationUrl && typeof record.verificationUrl === 'string' && record.verificationUrl.startsWith('http')) {
     // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
     let cleanStored = record.verificationUrl.split('?')[0];
-    if (cleanStored.includes('landcommission-portal.vercel.app')) {
-      cleanStored = cleanStored.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
-    }
-    if (baseUrl && !cleanStored.startsWith(cleanBase)) {
-      try {
-        const parsed = new URL(cleanStored);
-        return `${cleanBase}${parsed.pathname}`;
-      } catch (e) {}
+    if (isTemporaryOrLocalUrl(cleanStored)) {
+      cleanStored = `${cleanBase}/verify/${encodeURIComponent(refId)}`;
     }
     return cleanStored;
   }
@@ -145,8 +158,9 @@ app.get('/api/network-info', (req, res) => {
   const isVercelHost = host.includes('vercel.app') || isVercel;
   const currentOrigin = host ? `${proto}://${host}` : null;
 
-  const publicUrl = isVercelHost ? currentOrigin : (getPublicUrl() || currentOrigin);
-  const suggested = publicUrl || `http://${LOCAL_IP}:${PORT}`;
+  // The official verification URL is always permanent and stable across all devices & scans
+  const publicUrl = OFFICIAL_PERMANENT_BASE;
+  const suggested = OFFICIAL_PERMANENT_BASE;
 
   res.json({
     isVercel: isVercelHost,
@@ -156,7 +170,8 @@ app.get('/api/network-info', (req, res) => {
     localUrl: `http://localhost:${PORT}`,
     lanUrl: `http://${LOCAL_IP}:${PORT}`,
     publicUrl: publicUrl,
-    isPublicAvailable: Boolean(publicUrl),
+    officialUrl: OFFICIAL_PERMANENT_BASE,
+    isPublicAvailable: true,
     suggestedBaseUrl: suggested
   });
 });
@@ -172,21 +187,21 @@ app.get('/api/records', (req, res) => {
 });
 
 // Bulk sync endpoint for persistent multi-device storage (supports 1000+ documents)
-app.post('/api/records/sync', (req, res) => {
+app.post('/api/records/sync', async (req, res) => {
   try {
     let list = Array.isArray(req.body) ? req.body : (req.body && req.body.records ? req.body.records : []);
     list = list.map(r => {
       if (r) {
-        if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
-          r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+        if (r.verificationUrl && isTemporaryOrLocalUrl(r.verificationUrl)) {
+          r.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${r.referenceId || r.id}`;
         }
-        if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
-          r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+        if (r.baseUrl && isTemporaryOrLocalUrl(r.baseUrl)) {
+          r.baseUrl = OFFICIAL_PERMANENT_BASE;
         }
       }
       return r;
     });
-    const merged = db.syncMany(list);
+    const merged = await db.syncManyAsync(list);
     res.json({ success: true, count: merged.length, records: merged });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -284,16 +299,9 @@ app.post('/api/records', async (req, res) => {
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
     const autoOrigin = host ? `${proto}://${host}` : null;
 
-    const publicUrl = autoOrigin && (autoOrigin.includes('vercel.app') || autoOrigin.includes('https://'))
-      ? autoOrigin
-      : getPublicUrl();
-
-    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
-      ? autoOrigin
-      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
-    let baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
-    if (baseUrl.includes('landcommission-portal.vercel.app')) {
-      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    let baseUrl = (body.baseUrl || '').trim().replace(/\/$/, '');
+    if (!baseUrl || isTemporaryOrLocalUrl(baseUrl)) {
+      baseUrl = OFFICIAL_PERMANENT_BASE;
     }
 
     const beaconIdx = (body.beacons && body.beacons[0] && body.beacons[0].beaconIndex) || 'SGGA EX 19 1A';
@@ -371,7 +379,7 @@ app.post('/api/records', async (req, res) => {
     const verificationUrl = constructVerificationUrl(record, baseUrl);
     record.verificationUrl = verificationUrl;
 
-    const saved = db.save(record);
+    const saved = await db.saveAsync(record);
     res.json({ success: true, record: saved });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -491,16 +499,9 @@ app.post('/api/generate-pdf', async (req, res) => {
     const calculatedAmount = 150 + Math.max(0, processedPoints - 4) * 20;
     record.amountPaid = `GHS ${calculatedAmount.toFixed(2)}`;
 
-    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-    const autoOrigin = host ? `${proto}://${host}` : null;
-    const publicUrl = autoOrigin || getPublicUrl();
-    const fallbackBase = (autoOrigin && autoOrigin.includes('ghanacorsnet-verify'))
-      ? autoOrigin
-      : (isVercel ? 'https://ghanacorsnet-verify.vercel.app' : (publicUrl || `http://${LOCAL_IP}:${PORT}`));
-    let baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '') || fallbackBase;
-    if (baseUrl.includes('landcommission-portal.vercel.app')) {
-      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    let baseUrl = (record.baseUrl || '').trim().replace(/\/$/, '');
+    if (!baseUrl || isTemporaryOrLocalUrl(baseUrl)) {
+      baseUrl = OFFICIAL_PERMANENT_BASE;
     }
 
     // Universal self-verifying URL: encodes complete document payload so phone scans always verify immediately
@@ -509,7 +510,7 @@ app.post('/api/generate-pdf', async (req, res) => {
 
     // Cache record in db
     try {
-      db.save(record);
+      await db.saveAsync(record);
     } catch (saveDbErr) {}
 
     const pdfBuffer = await generateSlipPDF(record, verificationUrl);
@@ -613,12 +614,23 @@ app.get('/api/records/:id/pdf', async (req, res) => {
   }
 });
 
-// Verification page routes
-app.get(['/verify/:id', '/ghanacorsnet-verify/:id'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'verify.html'));
+// Permanent 301 Redirect routes: /r/:id, /v/:id, /redirect/:id -> /verify/:id
+app.get(['/r/:id', '/v/:id', '/redirect/:id'], (req, res) => {
+  const refId = encodeURIComponent(req.params.id);
+  res.redirect(301, `/verify/${refId}`);
 });
 
-app.get(['/verify', '/ghanacorsnet-verify'], (req, res) => {
+// Direct Reference ID access at root: /GX1722219 -> /verify/GX1722219
+app.get('/:id', (req, res, next) => {
+  const id = req.params.id;
+  if (/^GX[0-9A-Za-z_-]+$/i.test(id)) {
+    return res.redirect(301, `/verify/${encodeURIComponent(id)}`);
+  }
+  next();
+});
+
+// Verification page routes
+app.get(['/verify/:id', '/ghanacorsnet-verify/:id', '/verify', '/ghanacorsnet-verify'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify.html'));
 });
 

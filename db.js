@@ -120,28 +120,41 @@ async function fetchCloudRecords() {
   return [];
 }
 
+async function pushCloudRecords(records) {
+  try {
+    const all = records || readRecords();
+    const map = {};
+    all.forEach(r => {
+      const k = String(r.referenceId || r.id).trim().toUpperCase();
+      if (k) map[k] = r;
+    });
+    const bodyStr = JSON.stringify(map);
+    const promises = CLOUD_REGISTRY_ENDPOINTS.map(async url => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: bodyStr,
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
+    });
+    await Promise.allSettled(promises);
+  } catch (err) {}
+}
+
 let syncTimer = null;
 function pushCloudRecordsDebounced() {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
-    try {
-      const all = readRecords();
-      const map = {};
-      all.forEach(r => {
-        const k = String(r.referenceId || r.id).trim().toUpperCase();
-        if (k) map[k] = r;
-      });
-      for (const url of CLOUD_REGISTRY_ENDPOINTS) {
-        try {
-          await fetch(url, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(map)
-          });
-        } catch (e) {}
-      }
-    } catch (err) {}
-  }, 400);
+    await pushCloudRecords();
+  }, 300);
 }
 
 const db = {
@@ -199,11 +212,16 @@ const db = {
 
   save(record) {
     if (record) {
-      if (record.verificationUrl && record.verificationUrl.includes('landcommission-portal.vercel.app')) {
-        record.verificationUrl = record.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      if (record.verificationUrl) {
+        let vUrl = record.verificationUrl.split('?')[0];
+        if (vUrl.includes('landcommission-portal.vercel.app') || vUrl.includes('trycloudflare.com') || vUrl.includes('localhost') || vUrl.includes('127.0.0.1')) {
+          record.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${record.referenceId || record.id}`;
+        }
       }
-      if (record.baseUrl && record.baseUrl.includes('landcommission-portal.vercel.app')) {
-        record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      if (record.baseUrl) {
+        if (record.baseUrl.includes('landcommission-portal.vercel.app') || record.baseUrl.includes('trycloudflare.com') || record.baseUrl.includes('localhost') || record.baseUrl.includes('127.0.0.1')) {
+          record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+        }
       }
     }
     const cleanId = String(record.id || record.referenceId || Date.now()).trim();
@@ -241,6 +259,14 @@ const db = {
     return record;
   },
 
+  async saveAsync(record) {
+    const saved = this.save(record);
+    try {
+      await pushCloudRecords();
+    } catch (e) {}
+    return saved;
+  },
+
   delete(id) {
     const records = readRecords();
     const cleanId = String(id).trim().toLowerCase();
@@ -268,10 +294,10 @@ const db = {
     incomingRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
       if (!key) return;
-      if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
-        r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      if (r.verificationUrl && (r.verificationUrl.includes('landcommission-portal.vercel.app') || r.verificationUrl.includes('trycloudflare.com') || r.verificationUrl.includes('localhost'))) {
+        r.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${r.referenceId || r.id}`;
       }
-      if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
+      if (r.baseUrl && (r.baseUrl.includes('landcommission-portal.vercel.app') || r.baseUrl.includes('trycloudflare.com') || r.baseUrl.includes('localhost'))) {
         r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
       }
       const existing = map.get(key);
@@ -285,7 +311,17 @@ const db = {
     writeRecords(merged);
     pushCloudRecordsDebounced();
     return merged;
-  }
+  },
+
+  async syncManyAsync(incomingRecords) {
+    const merged = this.syncMany(incomingRecords);
+    try {
+      await pushCloudRecords(merged);
+    } catch (e) {}
+    return merged;
+  },
+
+  pushCloudRecords
 };
 
 initDb();

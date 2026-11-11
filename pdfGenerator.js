@@ -83,10 +83,21 @@ async function generateSlipPDF(record, verificationUrl) {
       doc.on('data', b => buffers.push(b));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      // Target URL for vector QR code (guaranteed clean Version 3 URL, never bloated by tokens)
-      let rawTarget = verificationUrl || record.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${record.id || record.referenceId}`;
-      if (rawTarget.includes('landcommission-portal.vercel.app')) {
-        rawTarget = rawTarget.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      // Target URL for vector QR code (guaranteed permanent official URL, never temporary or session-dependent)
+      const OFFICIAL_PERMANENT_BASE = 'https://ghanacorsnet-verify.vercel.app';
+      const cleanRef = encodeURIComponent(String(record.id || record.referenceId || '').trim());
+      let rawTarget = verificationUrl || record.verificationUrl || `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
+      const lowerTarget = rawTarget.toLowerCase();
+      if (
+        lowerTarget.includes('trycloudflare.com') ||
+        lowerTarget.includes('localhost') ||
+        lowerTarget.includes('127.0.0.1') ||
+        lowerTarget.includes('landcommission-portal.vercel.app') ||
+        lowerTarget.includes('ngrok') ||
+        lowerTarget.includes(':5000') ||
+        /https?:\/\/(172\.|192\.168\.|10\.)/.test(lowerTarget)
+      ) {
+        rawTarget = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
       }
       const qrTarget = rawTarget.split('?')[0];
 

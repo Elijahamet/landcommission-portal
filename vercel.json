@@ -28,6 +28,22 @@
     {
       "source": "/ghanacorsnet-verify",
       "destination": "/verify.html"
+    },
+    {
+      "source": "/v/(.*)",
+      "destination": "/verify.html"
+    },
+    {
+      "source": "/r/(.*)",
+      "destination": "/verify.html"
+    },
+    {
+      "source": "/redirect/(.*)",
+      "destination": "/verify.html"
+    },
+    {
+      "source": "/(GX[0-9A-Za-z_-]+)",
+      "destination": "/verify.html"
     }
   ]
 }

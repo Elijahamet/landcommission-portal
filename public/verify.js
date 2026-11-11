@@ -232,9 +232,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1. Extract Record ID and optional compressed token from URL (/verify/:id, /ghanacorsnet-verify/:id, or ?id=... and ?d=...)
   let id = '';
   const pathParts = window.location.pathname.split('/').filter(Boolean);
-  if (pathParts.length >= 2 && (pathParts[0] === 'verify' || pathParts[0] === 'ghanacorsnet-verify')) {
+  if (pathParts.length >= 2 && ['verify', 'ghanacorsnet-verify', 'v', 'r', 'redirect'].includes(pathParts[0])) {
     id = decodeURIComponent(pathParts[1]);
-  } else if (pathParts.length === 1 && !pathParts[0].includes('.') && pathParts[0] !== 'verify' && pathParts[0] !== 'ghanacorsnet-verify' && pathParts[0] !== 'api') {
+  } else if (pathParts.length === 1 && !pathParts[0].includes('.') && !['verify', 'ghanacorsnet-verify', 'v', 'r', 'redirect', 'api'].includes(pathParts[0])) {
     id = decodeURIComponent(pathParts[0]);
   } else {
     const urlParams = new URLSearchParams(window.location.search);
@@ -413,32 +413,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       let recordFound = false;
 
       if (targetId) {
-        // 1. Check server API
-        try {
-          const res = await fetch(`/api/records/${encodeURIComponent(targetId)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.record) {
-              renderRecord(data.record);
-              recordFound = true;
-            }
-          }
-        } catch (srvErr) {}
+        // Query server API and persistent cloud registry in parallel for maximum resilience
+        const srvPromise = fetch(`/api/records/${encodeURIComponent(targetId)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => (d && d.success && d.record) ? d.record : null)
+          .catch(() => null);
 
-        // 2. If serverless was recycled, query persistent cloud registry directly
-        if (!recordFound) {
-          const cloudRec = await fetchFromCloudRegistry(targetId);
-          if (cloudRec) {
-            renderRecord(cloudRec);
+        const cldPromise = fetchFromCloudRegistry(targetId).catch(() => null);
+
+        // Render immediately as soon as either source returns the verified record
+        const fastestRecord = await Promise.race([
+          srvPromise.then(r => r ? r : new Promise(() => {})),
+          cldPromise.then(r => r ? r : new Promise(() => {}))
+        ]).catch(() => null);
+
+        if (fastestRecord) {
+          renderRecord(fastestRecord);
+          recordFound = true;
+        } else {
+          // Fallback: await both in case of slower network
+          const [srvRec, cldRec] = await Promise.all([srvPromise, cldPromise]);
+          const resolved = srvRec || cldRec;
+          if (resolved) {
+            renderRecord(resolved);
             recordFound = true;
-            // Warm server cache
-            try {
-              fetch('/api/records', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cloudRec)
-              }).catch(() => {});
-            } catch (e) {}
           }
         }
 

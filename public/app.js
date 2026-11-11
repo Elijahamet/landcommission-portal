@@ -6,6 +6,25 @@ document.addEventListener('DOMContentLoaded', () => {
     SAVED_RECORDS: 'landscommission_saved_records_v3'
   };
 
+  // Permanent official verification domain (never temporary, never expiring)
+  const OFFICIAL_PERMANENT_BASE = 'https://ghanacorsnet-verify.vercel.app';
+
+  function isTemporaryOrLocalUrl(url) {
+    if (!url || typeof url !== 'string') return true;
+    const lower = url.toLowerCase();
+    return (
+      lower.includes('trycloudflare.com') ||
+      lower.includes('localhost') ||
+      lower.includes('127.0.0.1') ||
+      lower.includes('landcommission-portal.vercel.app') ||
+      lower.includes('ngrok') ||
+      lower.includes('localtunnel') ||
+      lower.includes(':5000') ||
+      lower.includes(':3000') ||
+      /https?:\/\/(172\.|192\.168\.|10\.)/.test(lower)
+    );
+  }
+
   // State
   let networkInfo = { localIp: '127.0.0.1', port: 5000, lanUrl: 'http://localhost:5000' };
   let currentBeacons = [
@@ -449,14 +468,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let vUrl = '';
     if (currentLoadedVerificationUrl && currentLoadedVerificationUrl.includes(refId)) {
       vUrl = currentLoadedVerificationUrl;
-      if (vUrl.includes('landcommission-portal.vercel.app')) {
-        vUrl = vUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      if (isTemporaryOrLocalUrl(vUrl)) {
+        vUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${refId}`;
       }
     }
     let curBase = (baseUrlInput.value || '').trim();
-    if (curBase.includes('landcommission-portal.vercel.app')) {
-      curBase = 'https://ghanacorsnet-verify.vercel.app';
-      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
+    if (!curBase || isTemporaryOrLocalUrl(curBase)) {
+      curBase = OFFICIAL_PERMANENT_BASE;
+      if (baseUrlInput) baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
     }
     return {
       id: refId,
@@ -535,8 +554,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusEl = document.getElementById('netStatusText');
             if (statusEl) statusEl.textContent = `🌐 Worldwide Public Online`;
             
-            if (!baseUrlInput.dataset.userEdited || baseUrlInput.value === networkInfo.lanUrl || baseUrlInput.value.includes('localhost')) {
-              baseUrlInput.value = data.publicUrl;
+            if (!baseUrlInput.dataset.userEdited || baseUrlInput.value === networkInfo.lanUrl || baseUrlInput.value.includes('localhost') || baseUrlInput.value.includes('trycloudflare')) {
+              baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
               updateLivePreview();
             }
             if (tunnelStatusBadge) {
@@ -585,13 +604,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load specific data into form
   function loadData(data) {
     let rawVUrl = (data.verificationUrl || '').split('?')[0];
-    if (rawVUrl.includes('landcommission-portal.vercel.app')) {
-      rawVUrl = rawVUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    if (isTemporaryOrLocalUrl(rawVUrl)) {
+      rawVUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${data.referenceId || data.id || ''}`;
     }
     currentLoadedVerificationUrl = rawVUrl;
-    if (data.baseUrl && data.baseUrl.includes('landcommission-portal.vercel.app')) {
-      data.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
+    if (!data.baseUrl || isTemporaryOrLocalUrl(data.baseUrl)) {
+      data.baseUrl = OFFICIAL_PERMANENT_BASE;
+      if (baseUrlInput) baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
     }
     refIdInput.value = data.referenceId || generateUniqueRefId();
     regionalNoInput.value = data.regionalNumber || '';
@@ -844,24 +863,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function constructVerificationUrl(r, customBase) {
-    let baseUrl = (customBase || baseUrlInput.value.trim() || networkInfo.lanUrl).replace(/\/$/, '');
-    if (baseUrl.includes('landcommission-portal.vercel.app')) {
-      baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-      if (baseUrlInput) baseUrlInput.value = 'https://ghanacorsnet-verify.vercel.app';
-    }
-    const refId = (r.referenceId || r.id || '').trim();
-    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
-      // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
-      let cleanStoredUrl = r.verificationUrl.split('?')[0];
-      // Automatically migrate defunct landcommission-portal.vercel.app domain to active ghanacorsnet-verify.vercel.app domain
-      if (cleanStoredUrl.includes('landcommission-portal.vercel.app')) {
-        cleanStoredUrl = cleanStoredUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    const refId = String((r && (r.referenceId || r.id)) || '').trim();
+    let baseUrl = (customBase || (baseUrlInput ? baseUrlInput.value.trim() : '')).replace(/\/$/, '');
+    if (!baseUrl || isTemporaryOrLocalUrl(baseUrl)) {
+      baseUrl = OFFICIAL_PERMANENT_BASE;
+      if (baseUrlInput && isTemporaryOrLocalUrl(baseUrlInput.value)) {
+        baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
       }
-      if (customBase && !cleanStoredUrl.startsWith(baseUrl)) {
-        try {
-          const parsed = new URL(cleanStoredUrl);
-          return `${baseUrl}${parsed.pathname}`;
-        } catch (e) {}
+    }
+
+    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
+      let cleanStoredUrl = r.verificationUrl.split('?')[0];
+      if (isTemporaryOrLocalUrl(cleanStoredUrl)) {
+        cleanStoredUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${encodeURIComponent(refId)}`;
       }
       return cleanStoredUrl;
     }
@@ -876,13 +890,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(offscreenQrDiv);
 
   function getQrDataUrlOrSrc(targetUrl) {
-    if (!targetUrl) {
-      targetUrl = 'https://ghanacorsnet-verify.vercel.app/verify/GX1722219';
+    if (!targetUrl || isTemporaryOrLocalUrl(targetUrl)) {
+      const curRef = (refIdInput && refIdInput.value.trim()) || 'GX1722219';
+      targetUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${encodeURIComponent(curRef)}`;
     }
     // Clean targetUrl of any query string parameters to guarantee Version 3 (29x29) spacious QR
     targetUrl = targetUrl.split('?')[0];
-    if (targetUrl.includes('landcommission-portal.vercel.app')) {
-      targetUrl = targetUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    if (isTemporaryOrLocalUrl(targetUrl)) {
+      const curRef = (refIdInput && refIdInput.value.trim()) || 'GX1722219';
+      targetUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${encodeURIComponent(curRef)}`;
     }
     // 1. Try instant client-side QR code generation as 100% vector SVG
     if (window.QRCode && typeof window.QRCode === 'function') {
@@ -932,8 +948,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateQrCode() {
     const currentRec = getCurrentFormData();
     let targetUrl = constructVerificationUrl(currentRec);
-    if (targetUrl.includes('landcommission-portal.vercel.app')) {
-      targetUrl = targetUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    if (isTemporaryOrLocalUrl(targetUrl)) {
+      targetUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${currentRec.referenceId || currentRec.id}`;
     }
     const finalQrSrc = getQrDataUrlOrSrc(targetUrl);
 
@@ -1000,21 +1016,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  btnUseWifiIp.addEventListener('click', () => {
-    baseUrlInput.value = networkInfo.lanUrl;
-    baseUrlInput.dataset.userEdited = 'true';
-    updateLivePreview();
-    triggerAutoSave();
-    showToast('Base URL set to Wi-Fi IP (requires same Wi-Fi)');
-  });
+  if (btnUseWifiIp) {
+    btnUseWifiIp.addEventListener('click', () => {
+      baseUrlInput.value = networkInfo.lanUrl;
+      baseUrlInput.dataset.userEdited = 'true';
+      updateLivePreview();
+      triggerAutoSave();
+      showToast('Base URL set to Wi-Fi IP (requires same Wi-Fi)');
+    });
+  }
 
-  btnUseLocalhost.addEventListener('click', () => {
-    baseUrlInput.value = `http://localhost:${networkInfo.port}`;
-    baseUrlInput.dataset.userEdited = 'true';
-    updateLivePreview();
-    triggerAutoSave();
-    showToast('Base URL set to Localhost (this PC only)');
-  });
+  if (btnUseLocalhost) {
+    btnUseLocalhost.addEventListener('click', () => {
+      baseUrlInput.value = `http://localhost:${networkInfo.port}`;
+      baseUrlInput.dataset.userEdited = 'true';
+      updateLivePreview();
+      triggerAutoSave();
+      showToast('Base URL set to Localhost (this PC only)');
+    });
+  }
 
   baseUrlInput.addEventListener('input', () => {
     baseUrlInput.dataset.userEdited = 'true';
@@ -1192,11 +1212,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function executeAutoSave() {
     const currentRec = getCurrentFormData();
-    if (currentRec.baseUrl && currentRec.baseUrl.includes('landcommission-portal.vercel.app')) {
-      currentRec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    if (currentRec.baseUrl && isTemporaryOrLocalUrl(currentRec.baseUrl)) {
+      currentRec.baseUrl = OFFICIAL_PERMANENT_BASE;
     }
-    if (currentRec.verificationUrl && currentRec.verificationUrl.includes('landcommission-portal.vercel.app')) {
-      currentRec.verificationUrl = currentRec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    if (currentRec.verificationUrl && isTemporaryOrLocalUrl(currentRec.verificationUrl)) {
+      currentRec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${currentRec.referenceId || currentRec.id}`;
     }
 
     // Save active working draft into localStorage
@@ -1242,11 +1262,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(list)) {
               list.forEach(r => {
                 if (r) {
-                  if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
-                    r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+                  if (r.verificationUrl && isTemporaryOrLocalUrl(r.verificationUrl)) {
+                    r.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${r.referenceId || r.id}`;
                   }
-                  if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
-                    r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+                  if (r.baseUrl && isTemporaryOrLocalUrl(r.baseUrl)) {
+                    r.baseUrl = OFFICIAL_PERMANENT_BASE;
                   }
                 }
                 const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
@@ -1267,11 +1287,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save record to local vault. If forceNew is true, it guarantees a brand new entry!
   function saveRecordToLocalStorage(rec, forceNew = false) {
     try {
-      if (rec.verificationUrl && rec.verificationUrl.includes('landcommission-portal.vercel.app')) {
-        rec.verificationUrl = rec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+      if (rec.verificationUrl && isTemporaryOrLocalUrl(rec.verificationUrl)) {
+        rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId || rec.id}`;
       }
-      if (rec.baseUrl && rec.baseUrl.includes('landcommission-portal.vercel.app')) {
-        rec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+      if (rec.baseUrl && isTemporaryOrLocalUrl(rec.baseUrl)) {
+        rec.baseUrl = OFFICIAL_PERMANENT_BASE;
       }
       let records = getLocalRecords();
       const cleanRef = String(rec.referenceId || rec.id).trim().toLowerCase();
@@ -1311,15 +1331,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Regenerates QR representations with new SVG vector standard, preserves all user data, IDs, and destination URLs
   function migrateAllExistingSavedForms() {
     try {
-      // 0. Sweep entire browser localStorage: replace any defunct landcommission-portal.vercel.app with official ghanacorsnet-verify.vercel.app
+      // 0. Sweep entire browser localStorage: replace any temporary, local or defunct URLs with official ghanacorsnet-verify.vercel.app
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (!key) continue;
-          const val = localStorage.getItem(key);
-          if (val && typeof val === 'string' && val.includes('landcommission-portal.vercel.app')) {
-            const cleaned = val.replaceAll('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
-            localStorage.setItem(key, cleaned);
+          let val = localStorage.getItem(key);
+          if (val && typeof val === 'string') {
+            let changed = false;
+            if (val.includes('landcommission-portal.vercel.app')) {
+              val = val.replaceAll('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+              changed = true;
+            }
+            if (val.includes('.trycloudflare.com')) {
+              val = val.replace(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi, 'https://ghanacorsnet-verify.vercel.app');
+              changed = true;
+            }
+            if (val.includes('http://localhost:5000') || val.includes('http://127.0.0.1:5000')) {
+              val = val.replaceAll('http://localhost:5000', 'https://ghanacorsnet-verify.vercel.app')
+                       .replaceAll('http://127.0.0.1:5000', 'https://ghanacorsnet-verify.vercel.app');
+              changed = true;
+            }
+            if (changed) {
+              localStorage.setItem(key, val);
+            }
           }
         }
       } catch (sweepErr) {}
@@ -1356,8 +1391,8 @@ document.addEventListener('DOMContentLoaded', () => {
                   // Merge preserving all user-entered form details
                   const merged = existing ? { ...existing, ...r } : { ...r };
 
-                  // Ensure clean Version 3 destination URL without legacy long ?d= tokens or defunct domains
-                  if (merged.baseUrl && merged.baseUrl.includes('landcommission-portal.vercel.app')) {
+                  // Ensure clean permanent destination URL without legacy tokens or temporary domains
+                  if (merged.baseUrl && isTemporaryOrLocalUrl(merged.baseUrl)) {
                     merged.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
                   }
                   merged.verificationUrl = constructVerificationUrl(merged);
@@ -1613,11 +1648,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function downloadPdfForRecord(rec, triggeringBtn = null) {
     if (!rec) return;
     rec = { ...rec };
-    if (rec.verificationUrl && rec.verificationUrl.includes('landcommission-portal.vercel.app')) {
-      rec.verificationUrl = rec.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
+    if (rec.verificationUrl && isTemporaryOrLocalUrl(rec.verificationUrl)) {
+      rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId || rec.id}`;
     }
-    if (rec.baseUrl && rec.baseUrl.includes('landcommission-portal.vercel.app')) {
-      rec.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    if (rec.baseUrl && isTemporaryOrLocalUrl(rec.baseUrl)) {
+      rec.baseUrl = OFFICIAL_PERMANENT_BASE;
     }
     const originalContent = triggeringBtn ? triggeringBtn.innerHTML : null;
     if (triggeringBtn) {
