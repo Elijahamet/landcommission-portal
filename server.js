@@ -134,19 +134,10 @@ function isTemporaryOrLocalUrl(url) {
 }
 
 function constructVerificationUrl(record, baseUrl) {
-  const refId = String(record.referenceId || record.id || '').trim();
+  const refId = String((record && (record.referenceId || record.id)) || '').trim().toUpperCase();
   let cleanBase = (baseUrl || OFFICIAL_PERMANENT_BASE).replace(/\/$/, '');
   if (isTemporaryOrLocalUrl(cleanBase)) {
     cleanBase = OFFICIAL_PERMANENT_BASE;
-  }
-
-  if (record && record.verificationUrl && typeof record.verificationUrl === 'string' && record.verificationUrl.startsWith('http')) {
-    // Strip any legacy ?d= or ?token= parameters so URLs are always clean Version 3 (29x29 modules)
-    let cleanStored = record.verificationUrl.split('?')[0];
-    if (isTemporaryOrLocalUrl(cleanStored)) {
-      cleanStored = `${cleanBase}/verify/${encodeURIComponent(refId)}`;
-    }
-    return cleanStored;
   }
   return `${cleanBase}/verify/${encodeURIComponent(refId)}`;
 }
@@ -291,8 +282,8 @@ app.get('/api/records/:id', async (req, res) => {
 app.post('/api/records', async (req, res) => {
   try {
     const body = req.body || {};
-    const referenceId = (body.referenceId || '').trim() || `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
-    const id = (body.id || referenceId).trim();
+    const referenceId = String(body.referenceId || body.id || '').trim().toUpperCase() || `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const id = referenceId;
 
     // Auto-detect public host from Vercel headers if not explicitly given
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
@@ -453,9 +444,9 @@ app.get('/api/qr', async (req, res) => {
 app.post('/api/generate-pdf', async (req, res) => {
   try {
     const record = req.body || {};
-    const referenceId = (record.referenceId || record.id || `GX${Math.floor(1000000 + Math.random() * 9000000)}`).trim();
+    const referenceId = String(record.referenceId || record.id || '').trim().toUpperCase() || `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
     record.referenceId = referenceId;
-    record.id = record.id || referenceId;
+    record.id = referenceId;
 
     // Validation: Regional Number must be unique across all documents
     const cleanReg = (record.regionalNumber || '').trim();

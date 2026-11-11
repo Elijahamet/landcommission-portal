@@ -304,9 +304,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Default sample data matching official reference PDF (GX1722219)
   const SAMPLE_DATA = OFFICIAL_SAVED_RECORDS[0];
 
-  // Helper to generate a unique Reference ID
+  // Helper to generate a unique Reference ID (guaranteed globally collision-free)
   function generateUniqueRefId() {
-    return `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const local = getLocalRecords();
+    let id = '';
+    do {
+      id = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
+    } while (local.some(r => String(r.referenceId || r.id).trim().toUpperCase() === id));
+    return id;
   }
 
   // Helper to generate a unique Verification Code
@@ -461,17 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper to collect current form values into a clean record object
   function getCurrentFormData() {
-    const refId = (refIdInput.value || '').trim() || generateUniqueRefId();
+    const refId = String((refIdInput.value || '').trim() || generateUniqueRefId()).toUpperCase();
     let pts = parseInt(pointsInput.value, 10);
     if (isNaN(pts) || pts < 4) pts = 4;
     const calcAmt = `GHS ${calculateAmountForPoints(pts).toFixed(2)}`;
-    let vUrl = '';
-    if (currentLoadedVerificationUrl && currentLoadedVerificationUrl.includes(refId)) {
-      vUrl = currentLoadedVerificationUrl;
-      if (isTemporaryOrLocalUrl(vUrl)) {
-        vUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${refId}`;
-      }
-    }
+    // Always strictly derive the verification URL directly from this record's unique refId!
+    const vUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${refId}`;
     let curBase = (baseUrlInput.value || '').trim();
     if (!curBase || isTemporaryOrLocalUrl(curBase)) {
       curBase = OFFICIAL_PERMANENT_BASE;
@@ -577,6 +577,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultBeacon = 'SGGA CORS/2025/4';
     
     refIdInput.value = newRefId;
+    currentLoadedVerificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${newRefId}`;
+    lastLoadedClientName = '';
+    lastLoadedRefId = newRefId;
     regionalNoInput.value = '';
     vCodeInput.value = generateVerificationCode(defaultBeacon);
     dateInput.value = getTodayString();
@@ -594,25 +597,28 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     renderBeaconsEditor();
-    updateLivePreview();
+    updateLivePreview(true);
     try {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_DRAFT);
     } catch (e) {}
     setAutoSaveStatus('ready', '✓ Clean form ready');
   }
 
+  let lastLoadedClientName = '';
+  let lastLoadedRefId = '';
+
   // Load specific data into form
   function loadData(data) {
-    let rawVUrl = (data.verificationUrl || '').split('?')[0];
-    if (isTemporaryOrLocalUrl(rawVUrl)) {
-      rawVUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${data.referenceId || data.id || ''}`;
-    }
-    currentLoadedVerificationUrl = rawVUrl;
+    const cleanRef = String(data.referenceId || data.id || generateUniqueRefId()).trim().toUpperCase();
+    currentLoadedVerificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
+    lastLoadedClientName = (data.clientName || '').trim();
+    lastLoadedRefId = cleanRef;
+
     if (!data.baseUrl || isTemporaryOrLocalUrl(data.baseUrl)) {
       data.baseUrl = OFFICIAL_PERMANENT_BASE;
       if (baseUrlInput) baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
     }
-    refIdInput.value = data.referenceId || generateUniqueRefId();
+    refIdInput.value = cleanRef;
     regionalNoInput.value = data.regionalNumber || '';
     vCodeInput.value = data.verificationCode || generateVerificationCode(data.beacons && data.beacons[0] ? data.beacons[0].beaconIndex : '');
     dateInput.value = data.date || getTodayString();
@@ -863,21 +869,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function constructVerificationUrl(r, customBase) {
-    const refId = String((r && (r.referenceId || r.id)) || '').trim();
+    const refId = String((r && (r.referenceId || r.id)) || '').trim().toUpperCase();
     let baseUrl = (customBase || (baseUrlInput ? baseUrlInput.value.trim() : '')).replace(/\/$/, '');
     if (!baseUrl || isTemporaryOrLocalUrl(baseUrl)) {
       baseUrl = OFFICIAL_PERMANENT_BASE;
       if (baseUrlInput && isTemporaryOrLocalUrl(baseUrlInput.value)) {
         baseUrlInput.value = OFFICIAL_PERMANENT_BASE;
       }
-    }
-
-    if (r && r.verificationUrl && typeof r.verificationUrl === 'string' && r.verificationUrl.startsWith('http')) {
-      let cleanStoredUrl = r.verificationUrl.split('?')[0];
-      if (isTemporaryOrLocalUrl(cleanStoredUrl)) {
-        cleanStoredUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${encodeURIComponent(refId)}`;
-      }
-      return cleanStoredUrl;
     }
     return `${baseUrl}/verify/${encodeURIComponent(refId)}`;
   }
@@ -1064,9 +1062,9 @@ document.addEventListener('DOMContentLoaded', () => {
     validateRegionalNumber(true);
   });
 
-  // Smart collision prevention: When editing a client name,
+  // Smart collision prevention: When entering or editing a client name,
   // if current referenceId already belongs to a previously saved different client, auto-generate fresh unique Reference ID!
-  clientNameInput.addEventListener('blur', () => {
+  function checkAndDisambiguateClientRef() {
     const val = clientNameInput.value.trim();
     if (!val) return;
     const local = getLocalRecords();
@@ -1079,11 +1077,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (conflict) {
       const newRef = generateUniqueRefId();
       refIdInput.value = newRef;
+      lastLoadedRefId = newRef;
+      lastLoadedClientName = val;
       vCodeInput.value = generateVerificationCode(currentBeacons[0] ? currentBeacons[0].beaconIndex : '');
       updateLivePreview(true);
-      showToast(`✨ Generated fresh Reference ID ${newRef} for new client: ${val}`, 'info');
+      showToast(`✨ Generated unique Reference ID ${newRef} for client: ${val}`, 'info');
     }
-  });
+  }
+
+  clientNameInput.addEventListener('input', checkAndDisambiguateClientRef);
+  clientNameInput.addEventListener('blur', checkAndDisambiguateClientRef);
 
   // Process points input events: from 4 upward, automatically calculates amount
   pointsInput.addEventListener('input', () => {
@@ -1287,28 +1290,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save record to local vault. If forceNew is true, it guarantees a brand new entry!
   function saveRecordToLocalStorage(rec, forceNew = false) {
     try {
-      if (rec.verificationUrl && isTemporaryOrLocalUrl(rec.verificationUrl)) {
-        rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId || rec.id}`;
-      }
-      if (rec.baseUrl && isTemporaryOrLocalUrl(rec.baseUrl)) {
-        rec.baseUrl = OFFICIAL_PERMANENT_BASE;
-      }
+      const cleanRef = String(rec.referenceId || rec.id || '').trim().toUpperCase();
+      rec.referenceId = cleanRef;
+      rec.id = cleanRef;
+      rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
+      rec.baseUrl = OFFICIAL_PERMANENT_BASE;
+
       let records = getLocalRecords();
-      const cleanRef = String(rec.referenceId || rec.id).trim().toLowerCase();
-      const existingIdx = records.findIndex(r => String(r.referenceId || r.id).trim().toLowerCase() === cleanRef);
+      const existingIdx = records.findIndex(r => String(r.referenceId || r.id).trim().toUpperCase() === cleanRef);
 
       if (forceNew || existingIdx < 0) {
         // If forceNew and refId already taken, assign a fresh new Reference ID
         if (existingIdx >= 0 && forceNew) {
           rec.referenceId = generateUniqueRefId();
           rec.id = rec.referenceId;
-          refIdInput.value = rec.referenceId;
-          updateLivePreview();
+          rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId}`;
+          if (refIdInput) refIdInput.value = rec.referenceId;
+          updateLivePreview(true);
         }
         records.unshift({ ...rec, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
       } else {
-        // Update existing record
-        records[existingIdx] = { ...records[existingIdx], ...rec, updatedAt: new Date().toISOString() };
+        // Safety check: If existing record belongs to a completely different client, do NOT overwrite!
+        const existingRec = records[existingIdx];
+        const existingClient = (existingRec.clientName || '').trim().toLowerCase();
+        const incomingClient = (rec.clientName || '').trim().toLowerCase();
+        if (existingClient && incomingClient && existingClient !== incomingClient) {
+          rec.referenceId = generateUniqueRefId();
+          rec.id = rec.referenceId;
+          rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId}`;
+          if (refIdInput) refIdInput.value = rec.referenceId;
+          updateLivePreview(true);
+          records.unshift({ ...rec, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        } else {
+          // Same client: safe to update
+          records[existingIdx] = { ...existingRec, ...rec, updatedAt: new Date().toISOString() };
+        }
       }
 
       localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(records));
@@ -1496,13 +1512,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Check if referenceId is already taken by an existing document in registry
         const local = getLocalRecords();
-        const isTaken = local.some(r => String(r.referenceId || r.id).trim().toLowerCase() === currentRec.referenceId.toLowerCase());
+        const isTaken = local.some(r => String(r.referenceId || r.id).trim().toUpperCase() === currentRec.referenceId.toUpperCase());
         if (isTaken) {
           // Auto-generate fresh unique Reference ID for the new document
           currentRec.referenceId = generateUniqueRefId();
           currentRec.id = currentRec.referenceId;
+          currentRec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${currentRec.referenceId}`;
           refIdInput.value = currentRec.referenceId;
-          updateLivePreview();
+          updateLivePreview(true);
         }
 
         const savedRec = saveRecordToLocalStorage(currentRec, true);
@@ -1565,16 +1582,16 @@ document.addEventListener('DOMContentLoaded', () => {
       btnSaveRecord.disabled = true;
       btnSaveRecord.textContent = 'Updating...';
       const currentRec = getCurrentFormData();
-      saveRecordToLocalStorage(currentRec, false);
+      const savedRec = saveRecordToLocalStorage(currentRec, false);
 
       const res = await fetch('/api/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentRec)
+        body: JSON.stringify(savedRec)
       });
       await syncFullVaultWithServer();
       await fetchRecordsList();
-      showToast(`✓ Updated record "${currentRec.referenceId}" for ${currentRec.clientName}!`, 'success');
+      showToast(`✓ Updated record "${savedRec.referenceId}" for ${savedRec.clientName}!`, 'success');
     } catch (e) {
       showToast(`✓ Updated locally (Server sync: ${e.message})`, 'info');
     } finally {
@@ -1648,12 +1665,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function downloadPdfForRecord(rec, triggeringBtn = null) {
     if (!rec) return;
     rec = { ...rec };
-    if (rec.verificationUrl && isTemporaryOrLocalUrl(rec.verificationUrl)) {
-      rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${rec.referenceId || rec.id}`;
-    }
-    if (rec.baseUrl && isTemporaryOrLocalUrl(rec.baseUrl)) {
-      rec.baseUrl = OFFICIAL_PERMANENT_BASE;
-    }
+    const cleanRef = String(rec.referenceId || rec.id || '').trim().toUpperCase();
+    rec.referenceId = cleanRef;
+    rec.id = cleanRef;
+    rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
+    rec.baseUrl = OFFICIAL_PERMANENT_BASE;
     const originalContent = triggeringBtn ? triggeringBtn.innerHTML : null;
     if (triggeringBtn) {
       triggeringBtn.disabled = true;
@@ -1809,6 +1825,22 @@ document.addEventListener('DOMContentLoaded', () => {
         await executeAutoSave();
       } catch (e) {}
     }
+
+    // Force preview QR images to strictly match current record's ID and wait for render before printing
+    const currentRec = getCurrentFormData();
+    const qrTargetUrl = constructVerificationUrl(currentRec);
+    const qrSrc = getQrDataUrlOrSrc(qrTargetUrl);
+    const qrImages = document.querySelectorAll('.preview-qr-img');
+    await Promise.all(Array.from(qrImages).map(img => {
+      return new Promise(resolve => {
+        if (img.src === qrSrc && img.complete) return resolve();
+        img.onload = resolve;
+        img.onerror = resolve;
+        img.src = qrSrc;
+        setTimeout(resolve, 200);
+      });
+    }));
+
     window.print();
   }
 

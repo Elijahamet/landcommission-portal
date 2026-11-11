@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Official Permanent Catalog (Immediate Zero-Latency Verification for Official Receipts)
+  // Official Permanent Catalog: Strictly the genuine reference PDF document
   const OFFICIAL_REGISTRY_CATALOGUE = {
     'GX1722219': {
       referenceId: 'GX1722219',
@@ -46,120 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       surveyorName: 'DANNY MENSA',
       beacons: [
         { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX7109723': {
-      referenceId: 'GX7109723',
-      id: 'GX7109723',
-      regionalNumber: 'SGGA. G5098 26',
-      verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
-      transactionId: 'job_e9b418ac38d721fa',
-      stationLocation: 'SMD-EXAMINATION, ACCRA',
-      clientName: 'ALBERT WALE & AKUA SEKYERAA APPIAH',
-      region: 'Greater Accra',
-      locality: 'MIOTSO-PRAMPRAM',
-      processedPoints: 4,
-      amountPaid: 'GHS 150.00',
-      date: '03 November 2026',
-      surveyorName: 'AISSI KÉVINOS',
-      beacons: [
-        { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX2193345': {
-      referenceId: 'GX2193345',
-      id: 'GX2193345',
-      regionalNumber: 'SGGA. G2222 26',
-      verificationCode: 'SGGA CORS/2025/4/26/11/03/150-65',
-      transactionId: 'job_a1b2c3d4e5f67890',
-      stationLocation: 'GWCL, DODOWA',
-      clientName: 'DAVID AGBEME',
-      region: 'Greater Accra',
-      locality: 'DODOWA',
-      processedPoints: 5,
-      amountPaid: 'GHS 170.00',
-      date: '03 November 2026',
-      surveyorName: 'MAXWELL',
-      beacons: [
-        { beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX4950255': {
-      referenceId: 'GX4950255',
-      id: 'GX4950255',
-      regionalNumber: 'SGGA.G4950/2026',
-      verificationCode: 'SGGA EX 19 1A/26/11/06/858-26',
-      transactionId: 'job_c7f8a9b0d1e2f3a4',
-      stationLocation: 'GWCL, DODOWA',
-      clientName: 'LIZZETTE ANTWI BOASIAKO & ANNETTE ANTWI-BOASIAKO',
-      region: 'Greater Accra',
-      locality: 'OYARIFA',
-      processedPoints: 4,
-      amountPaid: 'GHS 150.00',
-      date: '06 November 2026',
-      surveyorName: 'DANNY MENSA',
-      beacons: [
-        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX8888888': {
-      referenceId: 'GX8888888',
-      id: 'GX8888888',
-      regionalNumber: 'SGGA. G7777 26',
-      verificationCode: 'SGGA CORS/2025/4/26/11/07/295-17',
-      transactionId: 'job_gx8888888_test',
-      stationLocation: 'GWCL, DODOWA',
-      clientName: 'NEW TEST OFFICER',
-      region: 'Greater Accra',
-      locality: 'ACCRA',
-      processedPoints: 4,
-      amountPaid: 'GHS 150.00',
-      date: '07 November 2026',
-      surveyorName: 'TESTER',
-      beacons: [
-        { beaconIndex: 'SGGA CORS/2025/4', x: '100', y: '200' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX8967032': {
-      referenceId: 'GX8967032',
-      id: 'GX8967032',
-      regionalNumber: 'SGGA.G9999/2026',
-      verificationCode: 'SGGA EX 19 1A/26/11/06/576-68',
-      transactionId: 'job_gx8967032_auth',
-      stationLocation: 'GWCL, DODOWA',
-      clientName: 'KWAME ASANTE',
-      region: 'Greater Accra',
-      locality: 'ACCRA CENTRAL',
-      processedPoints: 4,
-      amountPaid: 'GHS 150.00',
-      date: '06 November 2026',
-      surveyorName: 'JOHN DOE',
-      beacons: [
-        { beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }
-      ],
-      status: 'ACTIVE_VERIFIED'
-    },
-    'GX9991111': {
-      referenceId: 'GX9991111',
-      id: 'GX9991111',
-      regionalNumber: 'SGGA.G1111/2026',
-      verificationCode: 'SGGA EX 19 1A/26/11/06/100-10',
-      transactionId: 'job_gx9991111_auth',
-      stationLocation: 'GWCL, DODOWA',
-      clientName: 'TEST CLIENT COLD START',
-      region: 'Greater Accra',
-      locality: 'TEMA',
-      processedPoints: 4,
-      amountPaid: 'GHS 150.00',
-      date: '06 November 2026',
-      surveyorName: 'COLD START SURVEYOR',
-      beacons: [
-        { beaconIndex: 'SGGA EX 19 1A', x: '100', y: '200' }
       ],
       status: 'ACTIVE_VERIFIED'
     }
@@ -353,24 +239,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  const cleanId = String(id || '').trim().toUpperCase();
   const tokenRecord = decodeToken(token);
-  const cleanId = String(id || (tokenRecord && tokenRecord.referenceId) || '').trim().toUpperCase();
+  const tokenValid = tokenRecord && String(tokenRecord.referenceId || tokenRecord.id || '').trim().toUpperCase() === cleanId;
   const catalogRecord = cleanId ? OFFICIAL_REGISTRY_CATALOGUE[cleanId] : null;
   const localRecord = cleanId ? getLocalFallback(cleanId) : null;
 
-  // Immediate authoritative display priority:
-  // Token (direct from scanned physical sheet) > Official Hardcoded Catalog > LocalStorage
-  let immediateRecord = tokenRecord || catalogRecord || localRecord;
+  // Immediate fast preview (for instant perceived response time)
+  let immediateRecord = catalogRecord || (tokenValid ? tokenRecord : null) || localRecord;
   if (immediateRecord) {
     renderRecord(immediateRecord);
-    // Background sync to server so server database is populated
-    try {
-      fetch('/api/records', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(immediateRecord)
-      }).catch(() => {});
-    } catch (e) {}
   }
 
   // Persistent Cloud Registry Endpoints for mobile scans across all devices & serverless cold-starts
@@ -405,52 +283,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     return null;
   }
 
-  // Only query server API / cloud store if we do NOT have a verified token record!
-  // This guarantees that a scanned sheet's data is ALWAYS found, even days/months later!
-  if (!tokenRecord) {
-    try {
-      const targetId = cleanId;
-      let recordFound = false;
+  // Always query authoritative server API and persistent cloud store for exact record ID
+  try {
+    const targetId = cleanId;
+    let recordFound = false;
 
-      if (targetId) {
-        // Query server API and persistent cloud registry in parallel for maximum resilience
-        const srvPromise = fetch(`/api/records/${encodeURIComponent(targetId)}`)
-          .then(r => r.ok ? r.json() : null)
-          .then(d => (d && d.success && d.record) ? d.record : null)
-          .catch(() => null);
+    if (targetId) {
+      const srvPromise = fetch(`/api/records/${encodeURIComponent(targetId)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => (d && d.success && d.record) ? d.record : null)
+        .catch(() => null);
 
-        const cldPromise = fetchFromCloudRegistry(targetId).catch(() => null);
+      const cldPromise = fetchFromCloudRegistry(targetId).catch(() => null);
 
-        // Render immediately as soon as either source returns the verified record
-        const fastestRecord = await Promise.race([
-          srvPromise.then(r => r ? r : new Promise(() => {})),
-          cldPromise.then(r => r ? r : new Promise(() => {}))
-        ]).catch(() => null);
+      // Render authoritative record as soon as either source returns it
+      const fastestRecord = await Promise.race([
+        srvPromise.then(r => r ? r : new Promise(() => {})),
+        cldPromise.then(r => r ? r : new Promise(() => {}))
+      ]).catch(() => null);
 
-        if (fastestRecord) {
-          renderRecord(fastestRecord);
+      if (fastestRecord && String(fastestRecord.referenceId || fastestRecord.id || '').trim().toUpperCase() === targetId) {
+        renderRecord(fastestRecord);
+        recordFound = true;
+      } else {
+        const [srvRec, cldRec] = await Promise.all([srvPromise, cldPromise]);
+        const resolved = srvRec || cldRec;
+        if (resolved && String(resolved.referenceId || resolved.id || '').trim().toUpperCase() === targetId) {
+          renderRecord(resolved);
           recordFound = true;
-        } else {
-          // Fallback: await both in case of slower network
-          const [srvRec, cldRec] = await Promise.all([srvPromise, cldPromise]);
-          const resolved = srvRec || cldRec;
-          if (resolved) {
-            renderRecord(resolved);
-            recordFound = true;
-          }
         }
+      }
 
-        if (!recordFound && !immediateRecord) {
-          throw new Error('Record not found');
-        }
-      } else if (!immediateRecord) {
-        throw new Error('No record ID specified');
+      if (!recordFound && !immediateRecord) {
+        throw new Error('Record not found');
       }
-    } catch (err) {
-      console.warn('Lookup note:', err.message);
-      if (!immediateRecord) {
-        showError();
-      }
+    } else if (!immediateRecord) {
+      throw new Error('No record ID specified');
+    }
+  } catch (err) {
+    console.warn('Lookup note:', err.message);
+    if (!immediateRecord) {
+      showError();
     }
   }
 

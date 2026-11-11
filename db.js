@@ -211,20 +211,34 @@ const db = {
   },
 
   save(record) {
-    if (record) {
-      if (record.verificationUrl) {
-        let vUrl = record.verificationUrl.split('?')[0];
-        if (vUrl.includes('landcommission-portal.vercel.app') || vUrl.includes('trycloudflare.com') || vUrl.includes('localhost') || vUrl.includes('127.0.0.1')) {
-          record.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${record.referenceId || record.id}`;
-        }
-      }
-      if (record.baseUrl) {
-        if (record.baseUrl.includes('landcommission-portal.vercel.app') || record.baseUrl.includes('trycloudflare.com') || record.baseUrl.includes('localhost') || record.baseUrl.includes('127.0.0.1')) {
-          record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-        }
+    if (!record) return null;
+    let cleanId = String(record.referenceId || record.id || '').trim().toUpperCase();
+    if (!cleanId || cleanId === 'UNDEFINED' || cleanId === 'NULL') {
+      cleanId = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
+    }
+
+    const records = readRecords();
+    const existingIndex = records.findIndex(r => 
+      String(r.id || '').trim().toUpperCase() === cleanId ||
+      String(r.referenceId || '').trim().toUpperCase() === cleanId
+    );
+
+    // Collision safety: If cleanId matches an existing record but clientName is different, assign a fresh ID!
+    if (existingIndex >= 0) {
+      const existing = records[existingIndex];
+      const existingClient = (existing.clientName || '').trim().toLowerCase();
+      const incomingClient = (record.clientName || '').trim().toLowerCase();
+      if (existingClient && incomingClient && existingClient !== incomingClient) {
+        cleanId = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
       }
     }
-    const cleanId = String(record.id || record.referenceId || Date.now()).trim();
+
+    record.id = cleanId;
+    record.referenceId = cleanId;
+    record.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${cleanId}`;
+    record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    record.status = record.status || 'ACTIVE_VERIFIED';
+    record.updatedAt = new Date().toISOString();
 
     // Enforce Regional Number uniqueness
     if (record.regionalNumber) {
@@ -237,18 +251,13 @@ const db = {
       }
     }
 
-    const records = readRecords();
-    record.id = cleanId;
-    record.referenceId = record.referenceId || cleanId;
-    record.updatedAt = new Date().toISOString();
-
-    const existingIndex = records.findIndex(r => 
-      String(r.id || '').toLowerCase() === cleanId.toLowerCase() ||
-      String(r.referenceId || '').toLowerCase() === cleanId.toLowerCase()
+    const finalExistingIndex = records.findIndex(r => 
+      String(r.id || '').trim().toUpperCase() === cleanId ||
+      String(r.referenceId || '').trim().toUpperCase() === cleanId
     );
 
-    if (existingIndex >= 0) {
-      records[existingIndex] = { ...records[existingIndex], ...record };
+    if (finalExistingIndex >= 0) {
+      records[finalExistingIndex] = { ...records[finalExistingIndex], ...record };
     } else {
       record.createdAt = record.createdAt || new Date().toISOString();
       records.unshift(record);
@@ -292,14 +301,12 @@ const db = {
 
     // Merge incoming records
     incomingRecords.forEach(r => {
-      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      const key = String(r.referenceId || r.id || '').trim().toUpperCase();
       if (!key) return;
-      if (r.verificationUrl && (r.verificationUrl.includes('landcommission-portal.vercel.app') || r.verificationUrl.includes('trycloudflare.com') || r.verificationUrl.includes('localhost'))) {
-        r.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${r.referenceId || r.id}`;
-      }
-      if (r.baseUrl && (r.baseUrl.includes('landcommission-portal.vercel.app') || r.baseUrl.includes('trycloudflare.com') || r.baseUrl.includes('localhost'))) {
-        r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-      }
+      r.id = key;
+      r.referenceId = key;
+      r.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${key}`;
+      r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
       const existing = map.get(key);
       if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
         map.set(key, { ...existing, ...r });
