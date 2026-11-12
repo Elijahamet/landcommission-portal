@@ -158,12 +158,12 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000');
         doc.text('CLIENT NAME: ', leftMargin, y, { continued: true });
         doc.font('Helvetica-Bold').text(String(record.clientName || ''));
-        y += 14;
+        y += 16;
 
-        // 4. Two-Column Metadata (With "one one space" line gap between each row matching green marks)
+        // 4. Two-Column Metadata (With full blank line space in between text rows matching actual sample)
         const col1X = leftMargin;
         const col2X = leftMargin + contentWidth * 0.52;
-        const rowSpacing = 17.5;
+        const rowSpacing = 18;
 
         // Row 1
         doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
@@ -214,7 +214,7 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 14;
+        y += 16;
 
         // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
         const qrSize = 48;

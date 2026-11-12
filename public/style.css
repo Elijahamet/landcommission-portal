@@ -590,22 +590,28 @@ body {
 /* Client & Survey Details */
 .doc-client-row {
   font-size: 11px;
-  margin-top: 6px;
-  margin-bottom: 14px;
+  margin-top: 8px;
+  margin-bottom: 16px; /* Generous space between Client Name and the metadata grid */
+  line-height: 1.4;
 }
 
 .doc-client-row strong {
   font-weight: 800;
   color: #000000;
+  margin-right: 4px;
 }
 
-/* Two-column metadata details with one full line space in between rows */
+/* Two-column metadata details with generous spacing between each text line matching authentic sample */
 .doc-details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   column-gap: 36px;
-  row-gap: 15px; /* Clear line space between each detail row */
   margin-bottom: 18px;
+}
+
+.doc-details-grid > div {
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-line {
@@ -613,6 +619,11 @@ body {
   display: flex;
   align-items: baseline;
   line-height: 1.4;
+  margin-bottom: 13px; /* Full blank line space between each text row matching sample */
+}
+
+.detail-line:last-child {
+  margin-bottom: 0;
 }
 
 .detail-line .lbl {
