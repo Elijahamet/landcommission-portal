@@ -115,8 +115,8 @@ async function generateSlipPDF(record, verificationUrl) {
         const colWidthIndex = 264.05;
         const colWidthX = 122.99;
         const colWidthY = 143.30;
-        const headerHeight = 15.15;
-        const rowHeight = 15.15;
+        const headerHeight = 14.5;
+        const rowHeight = (record.beacons && record.beacons.length > 2) ? 12.5 : 14.0;
 
         // Header background fill (#f0f0f0) & borders (#cccccc, 0.75pt)
         doc.save();
@@ -130,9 +130,9 @@ async function generateSlipPDF(record, verificationUrl) {
 
         // Header text
         doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
-        doc.text('BEACON INDEX', tableX + 4.1, y + 3.5, { lineBreak: false });
-        doc.text('X', tableX + colWidthIndex + 4.1, y + 3.5, { lineBreak: false });
-        doc.text('Y', tableX + colWidthIndex + colWidthX + 4.1, y + 3.5, { lineBreak: false });
+        doc.text('BEACON INDEX', tableX + 4.1, y + 3.2, { lineBreak: false });
+        doc.text('X', tableX + colWidthIndex + 4.1, y + 3.2, { lineBreak: false });
+        doc.text('Y', tableX + colWidthIndex + colWidthX + 4.1, y + 3.2, { lineBreak: false });
         doc.restore();
 
         y += headerHeight;
@@ -150,26 +150,26 @@ async function generateSlipPDF(record, verificationUrl) {
           doc.moveTo(tableX + colWidthIndex + colWidthX, y).lineTo(tableX + colWidthIndex + colWidthX, y + rowHeight).stroke();
 
           doc.font('Helvetica').fontSize(8.25).fillColor('#000000');
-          doc.text(String(b.beaconIndex || ''), tableX + 4.1, y + 3.5, { lineBreak: false });
-          doc.text(String(b.x || ''), tableX + colWidthIndex + 4.1, y + 3.5, { lineBreak: false });
-          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 4.1, y + 3.5, { lineBreak: false });
+          doc.text(String(b.beaconIndex || ''), tableX + 4.1, y + 2.8, { lineBreak: false });
+          doc.text(String(b.x || ''), tableX + colWidthIndex + 4.1, y + 2.8, { lineBreak: false });
+          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 4.1, y + 2.8, { lineBreak: false });
           doc.restore();
 
           y += rowHeight;
         });
 
-        y += 15.8;
+        y += (beacons.length > 2) ? 10.0 : 13.5;
 
         // 3. Client Name (Baseline at exact reference offset)
         doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
         doc.text('CLIENT NAME: ', 36.60, y, { continued: true });
         doc.font('Helvetica').text(String(record.clientName || ''));
-        y += 19.20;
+        y += 17.5;
 
-        // 4. Two-Column Metadata (Exact reference layout: Left X: 36.60, Right X: 302.14, Baseline gap: 19.20pt)
+        // 4. Two-Column Metadata (Generous readable spacing between lines)
         const col1X = 36.60;
         const col2X = 302.14;
-        const rowSpacing = 19.20;
+        const rowSpacing = 17.5;
 
         // Row 1
         doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
@@ -220,29 +220,29 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 10.0;
+        y += 7.0;
 
-        // 5. Centered Approved Vector QR Code (45 pt size, exactly centered at X: 275.14)
+        // 5. Centered Approved Vector QR Code (45 pt size, strictly preserved)
         const qrSize = 45.0;
         const qrX = 275.14;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 4.9;
+        y += qrSize + 4.0;
 
-        // Thin horizontal separator line right under QR code (0.75pt, #dddddd, exactly from 32.10 to 563.18)
+        // Thin horizontal separator line right under QR code (0.75pt, #dddddd)
         doc.save();
         doc.strokeColor('#dddddd').lineWidth(0.75);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 18.0;
+        y += 12.0;
 
         // 6. Authorization (Centered Title at 9.0pt, 4 dotted lines from X: 192.85 to 561.31)
         doc.font('Helvetica-Bold').fontSize(9.0).fillColor('#000000')
           .text('AUTHORIZATION', leftMargin, y, { width: contentWidth, align: 'center' });
-        y += 17.8;
+        y += 14.0;
 
         const authDotsStartX = 192.85;
         const authDotsEndX = 561.31;
-        const authRowSpacing = 19.65;
+        const authRowSpacing = 17.5;
 
         function drawDottedField(label, curY, value = '') {
           doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000').text(label, 33.60, curY, { lineBreak: false });
@@ -263,16 +263,16 @@ async function generateSlipPDF(record, verificationUrl) {
         drawDottedField('DATE:', y);
         y += authRowSpacing;
         drawDottedField('STAMP:', y);
-        y += authRowSpacing;
+        y += 8.25;
 
         return y;
       }
 
-      // Render Slip 1 (Top / Official Copy, exact reference Y: 30.79)
-      renderSlip(30.79);
+      // Render Slip 1 (Top / Official Copy, generous space at the tip of the PDF: Y: 45.0)
+      renderSlip(45.0);
 
-      // Cut Line Divider at exact reference position Y: 414.42 (Dash: [5.67, 6.78], width: 1.5pt, #999999)
-      const midY = 414.42;
+      // Cut Line Divider at centered position Y: 414.0 (Dash: [5.67, 6.78], width: 1.5pt, #999999)
+      const midY = 414.0;
       doc.save();
       doc.strokeColor('#999999').lineWidth(1.5).dash(5.67, { space: 6.78 });
       doc.moveTo(29.10, midY).lineTo(270.00, midY).stroke();
@@ -285,8 +285,8 @@ async function generateSlipPDF(record, verificationUrl) {
           align: 'center'
         });
 
-      // Render Slip 2 (Bottom / Customer Copy, exact reference Y: 442.76)
-      renderSlip(442.76);
+      // Render Slip 2 (Bottom / Customer Copy, pushed UP to Y: 430.0 so there is plenty of space below lines at the bottom)
+      renderSlip(430.0);
 
       doc.end();
     } catch (err) {

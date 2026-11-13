@@ -506,7 +506,7 @@ body {
   min-height: 1123px; /* Standard A4 height */
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 24px 44px;
+  padding: 38px 44px 50px 44px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
