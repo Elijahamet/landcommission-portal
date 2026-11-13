@@ -558,15 +558,15 @@ body {
   border-collapse: collapse;
   margin-top: 0;
   margin-bottom: 10px;
-  border: 1px solid #d0d5dd;
+  border: 1px solid #cccccc;
 }
 
 .doc-beacons-table th {
-  background-color: #f1f3f5;
-  border: 1px solid #d0d5dd;
+  background-color: #f0f0f0;
+  border: 1px solid #cccccc;
   padding: 4px 8px;
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: left;
   color: #000000;
 }
@@ -581,7 +581,7 @@ body {
 }
 
 .doc-beacons-table td {
-  border: 1px solid #d0d5dd;
+  border: 1px solid #cccccc;
   padding: 5px 8px;
   font-size: 11px;
   color: #000000;
@@ -698,7 +698,7 @@ body {
 
 .auth-dots {
   flex: 1;
-  border-bottom: 1.5px dotted #555555;
+  border-bottom: 1.5px dotted #000000;
   height: 12px;
   position: relative;
 }
@@ -724,14 +724,14 @@ body {
 .cut-line-left,
 .cut-line-right {
   flex: 1;
-  border-bottom: 1.5px dashed #777777;
+  border-bottom: 1.5px dashed #999999;
   height: 1px;
 }
 
 .cut-label {
   padding: 0 14px;
   font-size: 8.5px;
-  color: #666666;
+  color: #999999;
   letter-spacing: 1px;
   font-weight: 600;
 }

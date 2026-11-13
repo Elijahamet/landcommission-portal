@@ -412,9 +412,68 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // Regional Number Uniqueness Helpers
-  function normalizeRegionalNumber(str) {
+  // Duplicate Data Prevention & Normalization Helpers
+  function normalizeString(str) {
     return String(str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function normalizeRegionalNumber(str) {
+    return normalizeString(str);
+  }
+
+  function normalizeVerificationCode(str) {
+    return normalizeString(str);
+  }
+
+  function normalizeRefId(str) {
+    return String(str || '').trim().toUpperCase();
+  }
+
+  function findDuplicateReferenceId(refId, currentRefId = null) {
+    if (!refId) return null;
+    const target = normalizeRefId(refId);
+    if (!target) return null;
+    const cleanCurrentId = currentRefId ? normalizeRefId(currentRefId) : null;
+
+    const all = (typeof allRecords !== 'undefined' && Array.isArray(allRecords) && allRecords.length > 0)
+      ? allRecords
+      : getLocalRecords();
+
+    return all.find(r => {
+      const rId = normalizeRefId(r.referenceId || r.id);
+      if (cleanCurrentId && rId && rId === cleanCurrentId) {
+        return false;
+      }
+      return rId === target;
+    }) || null;
+  }
+
+  function validateReferenceId(showErrorUi = true, isNew = false) {
+    const val = (refIdInput.value || '').trim();
+    const errorEl = document.getElementById('referenceIdError');
+    if (!val) {
+      if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+      refIdInput.style.borderColor = '';
+      return true;
+    }
+
+    if (isNew) {
+      const duplicate = findDuplicateReferenceId(val, null);
+      if (duplicate) {
+        if (showErrorUi) {
+          refIdInput.style.borderColor = '#dc2626';
+          if (errorEl) {
+            errorEl.style.display = 'block';
+            errorEl.textContent = `⚠️ Reference ID "${val}" is already registered to "${duplicate.clientName || 'Another Client'}". Each Reference ID must be unique.`;
+          }
+        }
+        return false;
+      }
+    }
+
+    refIdInput.style.borderColor = '';
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    return true;
   }
 
   function findDuplicateRegionalNumber(regionalNumber, currentRefId) {
@@ -460,6 +519,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     regionalNoInput.style.borderColor = '';
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    return true;
+  }
+
+  function findDuplicateVerificationCode(verificationCode, currentRefId) {
+    if (!verificationCode) return null;
+    const target = normalizeVerificationCode(verificationCode);
+    if (!target) return null;
+    const cleanCurrentId = String(currentRefId || '').trim().toLowerCase();
+
+    const all = (typeof allRecords !== 'undefined' && Array.isArray(allRecords) && allRecords.length > 0)
+      ? allRecords
+      : getLocalRecords();
+
+    return all.find(r => {
+      const rId = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (cleanCurrentId && rId && rId === cleanCurrentId) {
+        return false;
+      }
+      return normalizeVerificationCode(r.verificationCode) === target;
+    }) || null;
+  }
+
+  function validateVerificationCode(showErrorUi = true) {
+    const val = (verificationCodeInput.value || '').trim();
+    const refId = (refIdInput.value || '').trim();
+    const errorEl = document.getElementById('verificationCodeError');
+
+    if (!val) {
+      if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+      verificationCodeInput.style.borderColor = '';
+      return true;
+    }
+
+    const duplicate = findDuplicateVerificationCode(val, refId);
+    if (duplicate) {
+      if (showErrorUi) {
+        verificationCodeInput.style.borderColor = '#dc2626';
+        if (errorEl) {
+          errorEl.style.display = 'block';
+          errorEl.textContent = `⚠️ Verification Code "${val}" is already in use by "${duplicate.clientName || 'Another Client'}" (${duplicate.referenceId || duplicate.id}). Each Verification Code must be unique.`;
+        }
+      }
+      return false;
+    }
+
+    verificationCodeInput.style.borderColor = '';
     if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
     return true;
   }
@@ -1473,9 +1579,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (archiveCountPill) archiveCountPill.textContent = `${count} Documents`;
   }
 
+  let isSubmitting = false;
+
   // 5A. Save as Brand New Record (Guarantees infinite/1000+ entries without overwriting!)
   if (btnSaveNewRecord) {
     btnSaveNewRecord.addEventListener('click', async () => {
+      if (isSubmitting) return; // Prevent double-clicks / rapid submissions
+
       if (!clientNameInput.value.trim()) {
         showToast('Please enter Client Name before saving', 'error');
         clientNameInput.focus();
@@ -1487,7 +1597,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Don't save document!
       }
 
-      // 2. Regional Number must be unique across all documents
+      const cleanRef = (refIdInput.value || '').trim().toUpperCase();
+      // 2. Strict Reference ID uniqueness: prevent duplicate reference ID
+      if (cleanRef) {
+        const dupRef = findDuplicateReferenceId(cleanRef, null);
+        if (dupRef) {
+          showToast(`Cannot save: Reference ID "${cleanRef}" is already registered to "${dupRef.clientName || 'Another Client'}". Each Reference ID must be unique.`, 'error');
+          refIdInput.focus();
+          validateReferenceId(true, true);
+          return;
+        }
+      }
+
+      // 3. Regional Number must be unique across all documents
       if (!validateRegionalNumber(true)) {
         const val = (regionalNoInput.value || '').trim();
         const dup = findDuplicateRegionalNumber(val, null);
@@ -1497,7 +1619,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Don't save document!
       }
 
-      // 2. Process points should be from 4 upward
+      // 4. Verification Code must be unique across all documents
+      if (!validateVerificationCode(true)) {
+        const val = (verificationCodeInput.value || '').trim();
+        const dup = findDuplicateVerificationCode(val, null);
+        const owner = dup ? ` (already in use by "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
+        showToast(`Cannot save: Verification Code "${val}" is already in use${owner}. Each Verification Code must be unique.`, 'error');
+        verificationCodeInput.focus();
+        return; // Don't save document!
+      }
+
+      // Process points should be from 4 upward
       let pts = parseInt(pointsInput.value, 10);
       if (isNaN(pts) || pts < 4) {
         pointsInput.value = 4;
@@ -1505,41 +1637,33 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
+        isSubmitting = true;
         btnSaveNewRecord.disabled = true;
         btnSaveNewRecord.textContent = 'Saving...';
         
         let currentRec = getCurrentFormData();
-        
-        // Check if referenceId is already taken by an existing document in registry
-        const local = getLocalRecords();
-        const isTaken = local.some(r => String(r.referenceId || r.id).trim().toUpperCase() === currentRec.referenceId.toUpperCase());
-        if (isTaken) {
-          // Auto-generate fresh unique Reference ID for the new document
-          currentRec.referenceId = generateUniqueRefId();
-          currentRec.id = currentRec.referenceId;
-          currentRec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${currentRec.referenceId}`;
-          refIdInput.value = currentRec.referenceId;
-          updateLivePreview(true);
+
+        // Sync with server API with explicit isNew: true constraint check
+        const res = await fetch('/api/records?isNew=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...currentRec, isNew: true })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || `Server error (${res.status})`);
         }
 
-        const savedRec = saveRecordToLocalStorage(currentRec, true);
-
-        // Sync with server API
-        try {
-          await fetch('/api/records', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(savedRec)
-          });
-          // Bulk sync full vault
-          await syncFullVaultWithServer();
-        } catch (serverErr) {}
-
+        const savedRec = data.record || currentRec;
+        saveRecordToLocalStorage(savedRec, true);
+        await syncFullVaultWithServer();
         await fetchRecordsList();
         showToast(`✓ New Document Saved as "${savedRec.referenceId}" for ${savedRec.clientName}! Total: ${allRecords.length}`, 'success');
       } catch (e) {
         showToast('Error saving: ' + e.message, 'error');
       } finally {
+        isSubmitting = false;
         btnSaveNewRecord.disabled = false;
         btnSaveNewRecord.textContent = '💾 Save New Document';
         setAutoSaveStatus('ready', '✓ Saved');
@@ -1548,58 +1672,82 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 5B. Update Currently Loaded Document
-  btnSaveRecord.addEventListener('click', async () => {
-    if (!clientNameInput.value.trim()) {
-      showToast('Please enter Client Name before updating', 'error');
-      clientNameInput.focus();
-      return;
-    }
+  if (btnSaveRecord) {
+    btnSaveRecord.addEventListener('click', async () => {
+      if (isSubmitting) return;
 
-    // 1. If coordinates of beacon index have not been entered, display error and don't save document
-    if (!validateBeaconCoordinates({ showUiErrors: true })) {
-      return; // Don't save document!
-    }
+      if (!clientNameInput.value.trim()) {
+        showToast('Please enter Client Name before updating', 'error');
+        clientNameInput.focus();
+        return;
+      }
 
-    // 2. Regional Number must be unique across all documents
-    if (!validateRegionalNumber(true)) {
-      const val = (regionalNoInput.value || '').trim();
-      const currentRef = (refIdInput.value || '').trim();
-      const dup = findDuplicateRegionalNumber(val, currentRef);
-      const owner = dup ? ` (already registered to "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
-      showToast(`Cannot update: Regional Number "${val}" is already in use${owner}. Regional Numbers must be unique.`, 'error');
-      regionalNoInput.focus();
-      return; // Don't save document!
-    }
+      // 1. If coordinates of beacon index have not been entered, display error and don't save document
+      if (!validateBeaconCoordinates({ showUiErrors: true })) {
+        return; // Don't save document!
+      }
 
-    // 2. Process points should be from 4 upward
-    let pts = parseInt(pointsInput.value, 10);
-    if (isNaN(pts) || pts < 4) {
-      pointsInput.value = 4;
-      updateAmountFromPoints();
-    }
+      const currentRef = (refIdInput.value || '').trim().toUpperCase();
 
-    try {
-      btnSaveRecord.disabled = true;
-      btnSaveRecord.textContent = 'Updating...';
-      const currentRec = getCurrentFormData();
-      const savedRec = saveRecordToLocalStorage(currentRec, false);
+      // 2. Regional Number must be unique across all documents (excluding this record itself)
+      if (!validateRegionalNumber(true)) {
+        const val = (regionalNoInput.value || '').trim();
+        const dup = findDuplicateRegionalNumber(val, currentRef);
+        const owner = dup ? ` (already registered to "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
+        showToast(`Cannot update: Regional Number "${val}" is already in use${owner}. Regional Numbers must be unique.`, 'error');
+        regionalNoInput.focus();
+        return; // Don't save document!
+      }
 
-      const res = await fetch('/api/records', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(savedRec)
-      });
-      await syncFullVaultWithServer();
-      await fetchRecordsList();
-      showToast(`✓ Updated record "${savedRec.referenceId}" for ${savedRec.clientName}!`, 'success');
-    } catch (e) {
-      showToast(`✓ Updated locally (Server sync: ${e.message})`, 'info');
-    } finally {
-      btnSaveRecord.disabled = false;
-      btnSaveRecord.textContent = '✏️ Update';
-      setAutoSaveStatus('ready', '✓ Updated');
-    }
-  });
+      // 3. Verification Code must be unique across all documents (excluding this record itself)
+      if (!validateVerificationCode(true)) {
+        const val = (verificationCodeInput.value || '').trim();
+        const dup = findDuplicateVerificationCode(val, currentRef);
+        const owner = dup ? ` (already in use by "${dup.clientName || 'Another Client'}" - ${dup.referenceId || dup.id})` : '';
+        showToast(`Cannot update: Verification Code "${val}" is already in use${owner}. Each Verification Code must be unique.`, 'error');
+        verificationCodeInput.focus();
+        return; // Don't save document!
+      }
+
+      // Process points should be from 4 upward
+      let pts = parseInt(pointsInput.value, 10);
+      if (isNaN(pts) || pts < 4) {
+        pointsInput.value = 4;
+        updateAmountFromPoints();
+      }
+
+      try {
+        isSubmitting = true;
+        btnSaveRecord.disabled = true;
+        btnSaveRecord.textContent = 'Updating...';
+        const currentRec = getCurrentFormData();
+
+        const res = await fetch(`/api/records/${encodeURIComponent(currentRef)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentRec)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || `Server error (${res.status})`);
+        }
+
+        const savedRec = data.record || currentRec;
+        saveRecordToLocalStorage(savedRec, false);
+        await syncFullVaultWithServer();
+        await fetchRecordsList();
+        showToast(`✓ Updated record "${savedRec.referenceId}" for ${savedRec.clientName}!`, 'success');
+      } catch (e) {
+        showToast(`Update failed: ${e.message}`, 'error');
+      } finally {
+        isSubmitting = false;
+        btnSaveRecord.disabled = false;
+        btnSaveRecord.textContent = '✏️ Update';
+        setAutoSaveStatus('ready', '✓ Updated');
+      }
+    });
+  }
 
   // Persistent Cloud Registry Endpoints
   const CLOUD_ENDPOINTS = [
@@ -1930,8 +2078,53 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(allRecords));
     } catch (e) {}
 
+    const conflicts = getConflictingRecords(allRecords);
+    if (conflictsCountBadge) {
+      conflictsCountBadge.textContent = conflicts.length;
+    }
+
     refreshRecordsBadge();
-    renderRecordsList(allRecords);
+    renderRecordsList(showingOnlyConflicts ? conflicts : allRecords);
+  }
+
+  let showingOnlyConflicts = false;
+  const btnFilterConflicts = document.getElementById('btnFilterConflicts');
+  const conflictsCountBadge = document.getElementById('conflictsCountBadge');
+
+  function getConflictingRecords(recordsList) {
+    const list = recordsList || allRecords;
+    const regCounts = new Map();
+    const verCounts = new Map();
+
+    list.forEach(r => {
+      const reg = normalizeRegionalNumber(r.regionalNumber);
+      if (reg) regCounts.set(reg, (regCounts.get(reg) || 0) + 1);
+      const ver = normalizeVerificationCode(r.verificationCode);
+      if (ver) verCounts.set(ver, (verCounts.get(ver) || 0) + 1);
+    });
+
+    return list.filter(r => {
+      const reg = normalizeRegionalNumber(r.regionalNumber);
+      const ver = normalizeVerificationCode(r.verificationCode);
+      return (reg && regCounts.get(reg) > 1) || (ver && verCounts.get(ver) > 1);
+    });
+  }
+
+  if (btnFilterConflicts) {
+    btnFilterConflicts.addEventListener('click', () => {
+      showingOnlyConflicts = !showingOnlyConflicts;
+      if (showingOnlyConflicts) {
+        btnFilterConflicts.style.background = '#dc2626';
+        btnFilterConflicts.style.color = '#ffffff';
+        const conflicts = getConflictingRecords(allRecords);
+        renderRecordsList(conflicts);
+        showToast(`Showing ${conflicts.length} duplicate/conflicting documents for admin review`, 'info');
+      } else {
+        btnFilterConflicts.style.background = '#fef3c7';
+        btnFilterConflicts.style.color = '#b45309';
+        renderRecordsList(allRecords);
+      }
+    });
   }
 
   function renderRecordsList(records) {
@@ -1940,29 +2133,38 @@ document.addEventListener('DOMContentLoaded', () => {
       recordsListContainer.innerHTML = `
         <div style="text-align: center; color: #94a3b8; padding: 40px 20px;">
           <div style="font-size: 2.5rem; margin-bottom: 8px;">📂</div>
-          <p style="font-weight: 600; font-size: 1rem; color: #475569;">No saved documents in archive yet</p>
-          <p style="font-size: 0.85rem;">Fill out the form and click "💾 Save New Document" to store your records here.</p>
+          <p style="font-weight: 600; font-size: 1rem; color: #475569;">${showingOnlyConflicts ? 'No conflicting duplicate documents found' : 'No saved documents in archive yet'}</p>
+          <p style="font-size: 0.85rem;">${showingOnlyConflicts ? 'All records in registry have unique regional numbers and verification codes.' : 'Fill out the form and click "💾 Save New Document" to store your records here.'}</p>
         </div>
       `;
       return;
     }
+
+    const conflictsSet = new Set(getConflictingRecords(allRecords).map(r => String(r.referenceId || r.id).toUpperCase()));
 
     records.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
       const refId = escapeHtml(r.referenceId || r.id);
       const vUrl = constructVerificationUrl(r);
+      const isConflict = conflictsSet.has(refId.toUpperCase());
+      const conflictPill = isConflict
+        ? `<span style="background: #fef3c7; color: #b45309; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;" title="Shares duplicate Regional Number or Verification Code with another document">⚠️ Duplicate Field</span>`
+        : '';
+
       item.innerHTML = `
         <div class="record-meta" style="flex: 1; min-width: 200px;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
             <span style="background: #1e3a8a; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">${refId}</span>
             <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${escapeHtml(r.clientName || 'Unnamed Client')}</h4>
+            ${conflictPill}
           </div>
           <p style="margin: 0; font-size: 0.8rem; color: #64748b;">
             📍 <strong>${escapeHtml(r.locality || 'Locality unassigned')}</strong>, ${escapeHtml(r.region || '')} • 
             📅 ${escapeHtml(r.date || '')} • 
             💰 ${escapeHtml(r.amountPaid || 'GHS 150.00')} • 
-            📐 ${escapeHtml(r.surveyorName || 'N/A')}
+            📐 ${escapeHtml(r.surveyorName || 'N/A')} • 
+            🔢 Reg: <strong>${escapeHtml(r.regionalNumber || 'N/A')}</strong>
           </p>
         </div>
         <div class="record-actions" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">

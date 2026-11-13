@@ -88,199 +88,205 @@ async function generateSlipPDF(record, verificationUrl) {
       const cleanRef = encodeURIComponent(String(record.referenceId || record.id || '').trim().toUpperCase());
       const qrTarget = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
 
-      const pageWidth = doc.page.width;
-      const leftMargin = 38;
-      const rightMargin = 38;
-      const contentWidth = pageWidth - leftMargin - rightMargin;
+      const pageWidth = doc.page.width; // 595.28 pt
+      const leftMargin = 32.10;
+      const rightMargin = 32.10;
+      const contentWidth = pageWidth - leftMargin - rightMargin; // 531.08 pt
 
       // Function to render one half slip
       function renderSlip(startY) {
         let y = startY;
 
         // 1. Header
-        doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000')
-          .text('LANDS COMMISSION', leftMargin, y, { characterSpacing: 0.5 });
-        y += 14;
+        doc.font('Helvetica-Bold').fontSize(12.75).fillColor('#000000')
+          .text('LANDS COMMISSION', leftMargin, y, { lineBreak: false });
+        y += 13.9;
 
-        doc.font('Helvetica').fontSize(8.5).fillColor('#333333')
-          .text('SURVEY AND MAPPING DIVISION', leftMargin, y, { characterSpacing: 0.3 });
-        y += 10;
+        doc.font('Helvetica').fontSize(9.0).fillColor('#333333')
+          .text('SURVEY AND MAPPING DIVISION', leftMargin, y, { lineBreak: false });
+        y += 11.9;
 
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
-          .text('EX DATA', leftMargin, y, { characterSpacing: 0.3 });
-        y += 7; // No space between EX DATA and table (exact match to sample)
+        doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#444444')
+          .text('EX DATA', leftMargin, y, { lineBreak: false });
+        y += 7.0; // Starts table directly below EX DATA
 
-        // 2. Table: BEACON INDEX | X | Y
-        const tableX = leftMargin;
-        const colWidthIndex = contentWidth * 0.48;
-        const colWidthX = contentWidth * 0.26;
-        const colWidthY = contentWidth * 0.26;
-        const headerHeight = 15;
-        const rowHeight = 14;
+        // 2. Table: BEACON INDEX | X | Y (Exact reference dimensions: 264.05, 122.99, 143.30)
+        const tableX = 32.47;
+        const colWidthIndex = 264.05;
+        const colWidthX = 122.99;
+        const colWidthY = 143.30;
+        const headerHeight = 15.15;
+        const rowHeight = 15.15;
 
-        // Header background
-        doc.rect(tableX, y, contentWidth, headerHeight).fill('#f1f3f5');
-        doc.rect(tableX, y, contentWidth, headerHeight).strokeColor('#d0d5dd').lineWidth(0.6).stroke();
+        // Header background fill (#f0f0f0) & borders (#cccccc, 0.75pt)
+        doc.save();
+        doc.rect(tableX, y, colWidthIndex + colWidthX + colWidthY, headerHeight).fill('#f0f0f0');
+        doc.strokeColor('#cccccc').lineWidth(0.75);
+        doc.rect(tableX, y, colWidthIndex + colWidthX + colWidthY, headerHeight).stroke();
 
         // Header vertical dividers
         doc.moveTo(tableX + colWidthIndex, y).lineTo(tableX + colWidthIndex, y + headerHeight).stroke();
         doc.moveTo(tableX + colWidthIndex + colWidthX, y).lineTo(tableX + colWidthIndex + colWidthX, y + headerHeight).stroke();
 
         // Header text
-        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
-        doc.text('BEACON INDEX', tableX + 6, y + 3.5);
-        doc.text('X', tableX + colWidthIndex + 6, y + 3.5);
-        doc.text('Y', tableX + colWidthIndex + colWidthX + 6, y + 3.5);
+        doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
+        doc.text('BEACON INDEX', tableX + 4.1, y + 3.5, { lineBreak: false });
+        doc.text('X', tableX + colWidthIndex + 4.1, y + 3.5, { lineBreak: false });
+        doc.text('Y', tableX + colWidthIndex + colWidthX + 4.1, y + 3.5, { lineBreak: false });
+        doc.restore();
 
         y += headerHeight;
 
         // Table Rows
         const beacons = record.beacons && record.beacons.length > 0 
           ? record.beacons 
-          : [{ beaconIndex: 'SGGA EX 19 1A', x: '333460.15', y: '1199651.081' }];
+          : [{ beaconIndex: 'SGGA CORS/2025/4', x: '434768.62', y: '1230591.872' }];
 
         beacons.forEach(b => {
-          doc.rect(tableX, y, contentWidth, rowHeight).strokeColor('#d0d5dd').lineWidth(0.6).stroke();
+          doc.save();
+          doc.strokeColor('#cccccc').lineWidth(0.75);
+          doc.rect(tableX, y, colWidthIndex + colWidthX + colWidthY, rowHeight).stroke();
           doc.moveTo(tableX + colWidthIndex, y).lineTo(tableX + colWidthIndex, y + rowHeight).stroke();
           doc.moveTo(tableX + colWidthIndex + colWidthX, y).lineTo(tableX + colWidthIndex + colWidthX, y + rowHeight).stroke();
 
-          doc.font('Helvetica').fontSize(8).fillColor('#111111');
-          doc.text(String(b.beaconIndex || ''), tableX + 6, y + 3.5);
-          doc.text(String(b.x || ''), tableX + colWidthIndex + 6, y + 3.5);
-          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 6, y + 3.5);
+          doc.font('Helvetica').fontSize(8.25).fillColor('#000000');
+          doc.text(String(b.beaconIndex || ''), tableX + 4.1, y + 3.5, { lineBreak: false });
+          doc.text(String(b.x || ''), tableX + colWidthIndex + 4.1, y + 3.5, { lineBreak: false });
+          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 4.1, y + 3.5, { lineBreak: false });
+          doc.restore();
 
           y += rowHeight;
         });
 
-        y += 7;
+        y += 15.8;
 
-        // 3. Client Name
-        doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000');
-        doc.text('CLIENT NAME: ', leftMargin, y, { continued: true });
-        doc.font('Helvetica-Bold').text(String(record.clientName || ''));
-        y += 14;
+        // 3. Client Name (Baseline at exact reference offset)
+        doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
+        doc.text('CLIENT NAME: ', 36.60, y, { continued: true });
+        doc.font('Helvetica').text(String(record.clientName || ''));
+        y += 19.20;
 
-        // 4. Two-Column Metadata (With full blank line space in between text rows matching actual sample)
-        const col1X = leftMargin;
-        const col2X = leftMargin + contentWidth * 0.52;
-        const rowSpacing = 16;
+        // 4. Two-Column Metadata (Exact reference layout: Left X: 36.60, Right X: 302.14, Baseline gap: 19.20pt)
+        const col1X = 36.60;
+        const col2X = 302.14;
+        const rowSpacing = 19.20;
 
         // Row 1
-        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
+        doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
         doc.text('REFERENCE ID: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.referenceId || record.id || ''));
 
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('VERIFICATION CODE: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.verificationCode || ''));
 
         y += rowSpacing;
 
         // Row 2
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('REGIONAL NUMBER: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.regionalNumber || ''));
 
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('REGION: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.region || ''));
 
         y += rowSpacing;
 
         // Row 3
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('LOCALITY: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.locality || ''));
 
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('PROCESSED POINTS: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.processedPoints || ''));
 
         y += rowSpacing;
 
         // Row 4
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('AMOUNT PAID: ', col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.amountPaid || ''));
 
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text('DATE: ', col2X, y, { continued: true });
         doc.font('Helvetica').text(String(record.date || ''));
 
         y += rowSpacing;
 
         // Row 5
-        doc.font('Helvetica-Bold').fontSize(7.5);
+        doc.font('Helvetica-Bold').fontSize(8.25);
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 13;
+        y += 10.0;
 
-        // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
-        const qrSize = 48;
-        const qrX = leftMargin + (contentWidth - qrSize) / 2;
+        // 5. Centered Approved Vector QR Code (45 pt size, exactly centered at X: 275.14)
+        const qrSize = 45.0;
+        const qrX = 275.14;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 4;
+        y += qrSize + 4.9;
 
-        // Thin horizontal separator line right under QR code (exact match to official sample)
+        // Thin horizontal separator line right under QR code (0.75pt, #dddddd, exactly from 32.10 to 563.18)
         doc.save();
-        doc.strokeColor('#dddddd').lineWidth(0.5);
+        doc.strokeColor('#dddddd').lineWidth(0.75);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 11;
+        y += 18.0;
 
-        // 6. Authorization
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
-          .text('AUTHORIZATION', leftMargin + (contentWidth - 100) / 2, y, { width: 100, align: 'center' });
-        y += 11;
+        // 6. Authorization (Centered Title at 9.0pt, 4 dotted lines from X: 192.85 to 561.31)
+        doc.font('Helvetica-Bold').fontSize(9.0).fillColor('#000000')
+          .text('AUTHORIZATION', leftMargin, y, { width: contentWidth, align: 'center' });
+        y += 17.8;
 
-        const authLabelWidth = 115;
-        const authLineX = leftMargin + authLabelWidth;
-        const authLineWidth = contentWidth - authLabelWidth;
+        const authDotsStartX = 192.85;
+        const authDotsEndX = 561.31;
+        const authRowSpacing = 19.65;
 
         function drawDottedField(label, curY, value = '') {
-          doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111').text(label, leftMargin, curY);
+          doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000').text(label, 33.60, curY, { lineBreak: false });
           if (value) {
-            doc.font('Helvetica').fontSize(7.5).text(value, authLineX + 5, curY);
+            doc.font('Helvetica').fontSize(8.25).fillColor('#000000').text(value, authDotsStartX + 4, curY, { lineBreak: false });
           }
-          // Dotted line
+          // Exact crisp dotted line ([0.003, 1.5], 0.75pt width, black)
           doc.save();
-          doc.strokeColor('#555555').lineWidth(0.5).dash(1.5, { space: 2 });
-          doc.moveTo(authLineX, curY + 7).lineTo(leftMargin + contentWidth, curY + 7).stroke();
+          doc.strokeColor('#000000').lineWidth(0.75).dash(0.003, { space: 1.5 });
+          doc.moveTo(authDotsStartX, curY + 7.5).lineTo(authDotsEndX, curY + 7.5).stroke();
           doc.restore();
         }
 
         drawDottedField('SMD OFFICER NAME:', y, record.smdOfficerName || '');
-        y += 11;
+        y += authRowSpacing;
         drawDottedField('SIGNATURE:', y);
-        y += 11;
+        y += authRowSpacing;
         drawDottedField('DATE:', y);
-        y += 11;
+        y += authRowSpacing;
         drawDottedField('STAMP:', y);
-        y += 12;
+        y += authRowSpacing;
 
         return y;
       }
 
-      // Render Slip 1 (Top / Official Copy)
-      renderSlip(20);
+      // Render Slip 1 (Top / Official Copy, exact reference Y: 30.79)
+      renderSlip(30.79);
 
-      // Cut Line Divider in the middle of page
-      const midY = 405;
+      // Cut Line Divider at exact reference position Y: 414.42 (Dash: [5.67, 6.78], width: 1.5pt, #999999)
+      const midY = 414.42;
       doc.save();
-      doc.strokeColor('#888888').lineWidth(0.7).dash(5, { space: 4 });
-      doc.moveTo(leftMargin, midY).lineTo(leftMargin + contentWidth * 0.42, midY).stroke();
-      doc.moveTo(leftMargin + contentWidth * 0.58, midY).lineTo(leftMargin + contentWidth, midY).stroke();
+      doc.strokeColor('#999999').lineWidth(1.5).dash(5.67, { space: 6.78 });
+      doc.moveTo(29.10, midY).lineTo(270.00, midY).stroke();
+      doc.moveTo(325.00, midY).lineTo(566.00, midY).stroke();
       doc.restore();
 
-      doc.font('Helvetica').fontSize(6.5).fillColor('#666666')
-        .text('✂ CUT HERE ✂', leftMargin + contentWidth * 0.42, midY - 4, {
-          width: contentWidth * 0.16,
+      doc.font('Helvetica').fontSize(6.0).fillColor('#999999')
+        .text('✂ CUT HERE ✂', 270.00, midY - 3.5, {
+          width: 55.00,
           align: 'center'
         });
 
-      // Render Slip 2 (Bottom / Customer Copy)
-      renderSlip(418);
+      // Render Slip 2 (Bottom / Customer Copy, exact reference Y: 442.76)
+      renderSlip(442.76);
 
       doc.end();
     } catch (err) {

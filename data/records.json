@@ -232,17 +232,6 @@
     "baseUrl": "https://ghanacorsnet-verify.vercel.app"
   },
   {
-    "id": "GX_COLDSTART_TEST",
-    "date": "10 November 2026",
-    "amountPaid": "GHS 150.00",
-    "clientName": "PERSISTED CLIENT AFTER DAYS",
-    "referenceId": "GX_COLDSTART_TEST",
-    "regionalNumber": "SGGA. COLD/2026",
-    "status": "ACTIVE_VERIFIED",
-    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_COLDSTART_TEST",
-    "baseUrl": "https://ghanacorsnet-verify.vercel.app"
-  },
-  {
     "id": "GX5876516",
     "date": "08 November 2026",
     "region": "Greater Accra",

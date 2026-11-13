@@ -98,8 +98,20 @@ function writeRecords(records) {
   }
 }
 
-function normalizeReg(str) {
+function normalizeStr(str) {
   return String(str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function normalizeReg(str) {
+  return normalizeStr(str);
+}
+
+function normalizeCode(str) {
+  return normalizeStr(str);
+}
+
+function normalizeRef(str) {
+  return String(str || '').trim().toUpperCase();
 }
 
 async function fetchCloudRecords() {
@@ -162,20 +174,91 @@ const db = {
     return readRecords();
   },
 
+  findDuplicateReferenceId(referenceId, excludeId = null) {
+    if (!referenceId) return null;
+    const target = normalizeRef(referenceId);
+    if (!target) return null;
+    const cleanExclude = excludeId ? normalizeRef(excludeId) : null;
+    const records = readRecords();
+
+    return records.find(r => {
+      const rId = normalizeRef(r.referenceId || r.id);
+      if (cleanExclude && rId && rId === cleanExclude) {
+        return false;
+      }
+      return rId === target;
+    }) || null;
+  },
+
   findDuplicateRegionalNumber(regionalNumber, excludeId = null) {
     if (!regionalNumber) return null;
     const target = normalizeReg(regionalNumber);
     if (!target) return null;
-    const cleanExclude = excludeId ? String(excludeId).trim().toLowerCase() : null;
+    const cleanExclude = excludeId ? normalizeRef(excludeId) : null;
     const records = readRecords();
 
     return records.find(r => {
-      const rId = String(r.referenceId || r.id || '').trim().toLowerCase();
+      const rId = normalizeRef(r.referenceId || r.id);
       if (cleanExclude && rId && rId === cleanExclude) {
         return false;
       }
       return normalizeReg(r.regionalNumber) === target;
     }) || null;
+  },
+
+  findDuplicateVerificationCode(verificationCode, excludeId = null) {
+    if (!verificationCode) return null;
+    const target = normalizeCode(verificationCode);
+    if (!target) return null;
+    const cleanExclude = excludeId ? normalizeRef(excludeId) : null;
+    const records = readRecords();
+
+    return records.find(r => {
+      const rId = normalizeRef(r.referenceId || r.id);
+      if (cleanExclude && rId && rId === cleanExclude) {
+        return false;
+      }
+      return normalizeCode(r.verificationCode) === target;
+    }) || null;
+  },
+
+  getConflicts() {
+    const records = readRecords();
+    const regGroups = new Map();
+    const verGroups = new Map();
+
+    records.forEach(r => {
+      const reg = normalizeReg(r.regionalNumber);
+      if (reg) {
+        if (!regGroups.has(reg)) regGroups.set(reg, []);
+        regGroups.get(reg).push(r);
+      }
+      const ver = normalizeCode(r.verificationCode);
+      if (ver) {
+        if (!verGroups.has(ver)) verGroups.set(ver, []);
+        verGroups.get(ver).push(r);
+      }
+    });
+
+    const regionalConflicts = [];
+    for (const [key, list] of regGroups.entries()) {
+      if (list.length > 1) {
+        regionalConflicts.push({ value: list[0].regionalNumber, count: list.length, records: list });
+      }
+    }
+
+    const verificationConflicts = [];
+    for (const [key, list] of verGroups.entries()) {
+      if (list.length > 1) {
+        verificationConflicts.push({ value: list[0].verificationCode, count: list.length, records: list });
+      }
+    }
+
+    return {
+      totalRecords: records.length,
+      regionalConflicts,
+      verificationConflicts
+    };
   },
 
   getById(id) {
@@ -210,8 +293,9 @@ const db = {
     return found || null;
   },
 
-  save(record) {
+  save(record, options = {}) {
     if (!record) return null;
+    const isNew = Boolean(options.isNew);
     let cleanId = String(record.referenceId || record.id || '').trim().toUpperCase();
     if (!cleanId || cleanId === 'UNDEFINED' || cleanId === 'NULL') {
       cleanId = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
@@ -223,24 +307,16 @@ const db = {
       String(r.referenceId || '').trim().toUpperCase() === cleanId
     );
 
-    // Collision safety: If cleanId matches an existing record but clientName is different, assign a fresh ID!
-    if (existingIndex >= 0) {
+    // 1. Strict Duplicate Reference ID check for new records:
+    if (isNew && existingIndex >= 0) {
       const existing = records[existingIndex];
-      const existingClient = (existing.clientName || '').trim().toLowerCase();
-      const incomingClient = (record.clientName || '').trim().toLowerCase();
-      if (existingClient && incomingClient && existingClient !== incomingClient) {
-        cleanId = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
-      }
+      const err = new Error(`Reference ID "${cleanId}" is already registered to "${existing.clientName || 'Another Client'}". Duplicate Reference IDs are not permitted.`);
+      err.code = 'DUPLICATE_REFERENCE_ID';
+      err.duplicateRecord = existing;
+      throw err;
     }
 
-    record.id = cleanId;
-    record.referenceId = cleanId;
-    record.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${cleanId}`;
-    record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-    record.status = record.status || 'ACTIVE_VERIFIED';
-    record.updatedAt = new Date().toISOString();
-
-    // Enforce Regional Number uniqueness
+    // 2. Enforce Regional Number uniqueness
     if (record.regionalNumber) {
       const duplicate = this.findDuplicateRegionalNumber(record.regionalNumber, cleanId);
       if (duplicate) {
@@ -251,13 +327,26 @@ const db = {
       }
     }
 
-    const finalExistingIndex = records.findIndex(r => 
-      String(r.id || '').trim().toUpperCase() === cleanId ||
-      String(r.referenceId || '').trim().toUpperCase() === cleanId
-    );
+    // 3. Enforce Verification Code uniqueness
+    if (record.verificationCode) {
+      const duplicateVer = this.findDuplicateVerificationCode(record.verificationCode, cleanId);
+      if (duplicateVer) {
+        const err = new Error(`Verification Code "${record.verificationCode}" is already in use by "${duplicateVer.clientName || 'Another Client'}" (${duplicateVer.referenceId || duplicateVer.id}). Each Verification Code must be unique.`);
+        err.code = 'DUPLICATE_VERIFICATION_CODE';
+        err.duplicateRecord = duplicateVer;
+        throw err;
+      }
+    }
 
-    if (finalExistingIndex >= 0) {
-      records[finalExistingIndex] = { ...records[finalExistingIndex], ...record };
+    record.id = cleanId;
+    record.referenceId = cleanId;
+    record.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${cleanId}`;
+    record.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
+    record.status = record.status || 'ACTIVE_VERIFIED';
+    record.updatedAt = new Date().toISOString();
+
+    if (existingIndex >= 0) {
+      records[existingIndex] = { ...records[existingIndex], ...record };
     } else {
       record.createdAt = record.createdAt || new Date().toISOString();
       records.unshift(record);
@@ -268,8 +357,8 @@ const db = {
     return record;
   },
 
-  async saveAsync(record) {
-    const saved = this.save(record);
+  async saveAsync(record, options = {}) {
+    const saved = this.save(record, options);
     try {
       await pushCloudRecords();
     } catch (e) {}

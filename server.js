@@ -278,12 +278,35 @@ app.get('/api/records/:id', async (req, res) => {
   }
 });
 
-// Save or update record
+// List records with conflict inspection for authorized administrators
+app.get('/api/records/conflicts', (req, res) => {
+  try {
+    const report = db.getConflicts();
+    res.json({ success: true, ...report });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save or update record (with comprehensive duplicate prevention)
 app.post('/api/records', async (req, res) => {
   try {
     const body = req.body || {};
+    const isNew = Boolean(body.isNew || req.query.isNew === 'true');
     const referenceId = String(body.referenceId || body.id || '').trim().toUpperCase() || `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
     const id = referenceId;
+
+    // 0a. Validation: Prevent duplicate Reference ID when saving a brand new document
+    if (isNew) {
+      const existingRef = db.findDuplicateReferenceId(referenceId);
+      if (existingRef) {
+        return res.status(409).json({
+          success: false,
+          code: 'DUPLICATE_REFERENCE_ID',
+          error: `Reference ID "${referenceId}" is already registered to "${existingRef.clientName || 'another document'}". Duplicate Reference IDs are not permitted. Please generate or use a unique Reference ID.`
+        });
+      }
+    }
 
     // Auto-detect public host from Vercel headers if not explicitly given
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
@@ -303,14 +326,28 @@ app.post('/api/records', async (req, res) => {
     const autoVCode = `${beaconIdx}/${yy}/${mm}/${dd}/${Math.floor(100 + Math.random() * 900)}-${Math.floor(10 + Math.random() * 90)}`;
     const autoTxId = `job_${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
 
-    // 0. Validation: Regional Number must be unique across all documents
+    // 0b. Validation: Regional Number must be unique across all documents
     const cleanReg = (body.regionalNumber || '').trim();
     if (cleanReg) {
       const duplicate = db.findDuplicateRegionalNumber(cleanReg, id || referenceId);
       if (duplicate) {
         return res.status(400).json({
           success: false,
+          code: 'DUPLICATE_REGIONAL_NUMBER',
           error: `Regional Number "${cleanReg}" is already registered to "${duplicate.clientName || 'another document'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`
+        });
+      }
+    }
+
+    // 0c. Validation: Verification Code must be unique across all documents
+    const cleanVCode = (body.verificationCode || '').trim();
+    if (cleanVCode) {
+      const duplicateVer = db.findDuplicateVerificationCode(cleanVCode, id || referenceId);
+      if (duplicateVer) {
+        return res.status(400).json({
+          success: false,
+          code: 'DUPLICATE_VERIFICATION_CODE',
+          error: `Verification Code "${cleanVCode}" is already in use by "${duplicateVer.clientName || 'another document'}" (${duplicateVer.referenceId || duplicateVer.id}). Each Verification Code must be unique.`
         });
       }
     }
@@ -349,11 +386,11 @@ app.post('/api/records', async (req, res) => {
     const record = {
       id: id,
       referenceId: referenceId,
-      verificationCode: (body.verificationCode || '').trim() || autoVCode,
+      verificationCode: cleanVCode || autoVCode,
       transactionId: (body.transactionId || '').trim() || autoTxId,
       stationLocation: (body.stationLocation || '').trim() || 'GWCL, DODOWA',
       clientName: (body.clientName || '').trim(),
-      regionalNumber: (body.regionalNumber || '').trim(),
+      regionalNumber: cleanReg,
       region: (body.region || 'Greater Accra').trim(),
       locality: (body.locality || '').trim(),
       processedPoints: processedPoints,
@@ -370,10 +407,70 @@ app.post('/api/records', async (req, res) => {
     const verificationUrl = constructVerificationUrl(record, baseUrl);
     record.verificationUrl = verificationUrl;
 
-    const saved = await db.saveAsync(record);
+    const saved = await db.saveAsync(record, { isNew });
     res.json({ success: true, record: saved });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const statusCode = (err.code === 'DUPLICATE_REFERENCE_ID') ? 409 : (err.code ? 400 : 500);
+    res.status(statusCode).json({ success: false, code: err.code, error: err.message });
+  }
+});
+
+// Update existing record (PUT)
+app.put('/api/records/:id', async (req, res) => {
+  try {
+    const targetId = String(req.params.id || '').trim().toUpperCase();
+    const existing = db.getById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: `Record with Reference ID "${targetId}" not found.` });
+    }
+
+    const body = req.body || {};
+    const cleanReg = (body.regionalNumber || '').trim();
+    if (cleanReg) {
+      const duplicate = db.findDuplicateRegionalNumber(cleanReg, targetId);
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          code: 'DUPLICATE_REGIONAL_NUMBER',
+          error: `Regional Number "${cleanReg}" is already registered to "${duplicate.clientName || 'another document'}" (${duplicate.referenceId || duplicate.id}). Each Regional Number must be unique.`
+        });
+      }
+    }
+
+    const cleanVCode = (body.verificationCode || '').trim();
+    if (cleanVCode) {
+      const duplicateVer = db.findDuplicateVerificationCode(cleanVCode, targetId);
+      if (duplicateVer) {
+        return res.status(400).json({
+          success: false,
+          code: 'DUPLICATE_VERIFICATION_CODE',
+          error: `Verification Code "${cleanVCode}" is already in use by "${duplicateVer.clientName || 'another document'}" (${duplicateVer.referenceId || duplicateVer.id}). Each Verification Code must be unique.`
+        });
+      }
+    }
+
+    const beacons = Array.isArray(body.beacons) ? body.beacons : existing.beacons || [];
+    let processedPoints = parseInt(body.processedPoints, 10);
+    if (isNaN(processedPoints) || processedPoints < 4) {
+      processedPoints = Math.max(4, beacons.length);
+    }
+    const calculatedAmount = 150 + Math.max(0, processedPoints - 4) * 20;
+
+    const updatedRecord = {
+      ...existing,
+      ...body,
+      id: targetId,
+      referenceId: targetId,
+      processedPoints,
+      amountPaid: `GHS ${calculatedAmount.toFixed(2)}`,
+      updatedAt: new Date().toISOString()
+    };
+
+    const saved = await db.saveAsync(updatedRecord, { isNew: false });
+    res.json({ success: true, record: saved });
+  } catch (err) {
+    const statusCode = err.code ? 400 : 500;
+    res.status(statusCode).json({ success: false, code: err.code, error: err.message });
   }
 });
 
