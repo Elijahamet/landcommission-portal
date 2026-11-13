@@ -31,10 +31,10 @@
   {
     "id": "GX7109723",
     "referenceId": "GX7109723",
-    "regionalNumber": "SGGA. G7569 26",
+    "regionalNumber": "SGGA. G5098 26",
     "verificationCode": "SGGA CORS/2025/4/26/11/03/150-65",
     "transactionId": "job_8ffad20465a2b0cb",
-    "stationLocation": "GWCL, DODOWA",
+    "stationLocation": "SMD-EXAMINATION, ACCRA",
     "clientName": "ALBERT WALE & AKUA SEKYERAA APPIAH",
     "region": "Greater Accra",
     "locality": "MIOTSO-PRAMPRAM",
@@ -90,7 +90,7 @@
   {
     "id": "GX4950255",
     "referenceId": "GX4950255",
-    "regionalNumber": "SGGA.G3488/2026",
+    "regionalNumber": "SGGA.G4950/2026",
     "verificationCode": "SGGA EX 19 1A/26/11/06/858-26",
     "transactionId": "job_c7f8a9b0d1e2f3a4",
     "stationLocation": "GWCL, DODOWA",
@@ -1355,5 +1355,175 @@
     "stationLocation": "GWCL, DODOWA",
     "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX245HH",
     "verificationCode": "SGGA CORS/2025/4/26/11/03/150-65"
+  },
+  {
+    "id": "GX_AUTO_TEST_B_1794580063838",
+    "date": "13 November 2026",
+    "region": "Ashanti",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "303825.126",
+        "y": "1133357.319",
+        "beaconIndex": "SGGA CORS/2025/3"
+      }
+    ],
+    "locality": "KUMASI CENTRAL",
+    "createdAt": "2026-11-13T14:27:47.680Z",
+    "updatedAt": "2026-11-13T14:27:47.680Z",
+    "amountPaid": "GHS 170.00",
+    "clientName": "AUTOMATED TEST CLIENT BETA",
+    "referenceId": "GX_AUTO_TEST_B_1794580063838",
+    "surveyorName": "KWAME ASANTE",
+    "transactionId": "job_016c07ab5e268829",
+    "regionalNumber": "SGGA. AUTO_REG_B_1794580063838/2026",
+    "smdOfficerName": "",
+    "processedPoints": 5,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_AUTO_TEST_B_1794580063838",
+    "verificationCode": "SGGA CORS/2025/4/26/11/13/B465"
+  },
+  {
+    "id": "GX_RAPID_1794580067178",
+    "date": "",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "434768.62",
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
+      }
+    ],
+    "locality": "",
+    "createdAt": "2026-11-13T14:27:47.193Z",
+    "updatedAt": "2026-11-13T14:27:47.193Z",
+    "amountPaid": "GHS 150.00",
+    "clientName": "RAPID CLICK TEST CLIENT",
+    "referenceId": "GX_RAPID_1794580067178",
+    "surveyorName": "",
+    "transactionId": "job_18454ea939bebce5",
+    "regionalNumber": "SGGA. RAPID_1794580067178",
+    "smdOfficerName": "",
+    "processedPoints": 4,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_RAPID_1794580067178",
+    "verificationCode": "SGGA CORS/2025/4/26/11/13/RAPID_1794580067178"
+  },
+  {
+    "id": "GX_AUTO_TEST_A_1794580063838",
+    "date": "13 November 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "434768.62",
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
+      }
+    ],
+    "locality": "MATAHEKO - AFIENYA",
+    "createdAt": "2026-11-13T14:27:43.966Z",
+    "updatedAt": "2026-11-13T14:27:43.966Z",
+    "amountPaid": "GHS 150.00",
+    "clientName": "AUTOMATED TEST CLIENT ALPHA",
+    "referenceId": "GX_AUTO_TEST_A_1794580063838",
+    "surveyorName": "PETER ASIEDU",
+    "transactionId": "job_053d2558432db85b",
+    "regionalNumber": "SGGA. AUTO_REG_A_1794580063838/2026",
+    "smdOfficerName": "",
+    "processedPoints": 4,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_AUTO_TEST_A_1794580063838",
+    "verificationCode": "SGGA CORS/2025/4/26/11/13/A552"
+  },
+  {
+    "id": "GX_TEST_PAGE_COUNT_5B",
+    "date": "14 October 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "333460.15",
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
+      },
+      {
+        "x": "333490.22",
+        "y": "1199620.114",
+        "beaconIndex": "SGGA EX 19 2A"
+      },
+      {
+        "x": "333520.30",
+        "y": "1199590.200",
+        "beaconIndex": "SGGA EX 19 3A"
+      },
+      {
+        "x": "333550.40",
+        "y": "1199560.300",
+        "beaconIndex": "SGGA EX 19 4A"
+      },
+      {
+        "x": "333580.50",
+        "y": "1199530.400",
+        "beaconIndex": "SGGA EX 19 5A"
+      }
+    ],
+    "locality": "OYARIFA",
+    "createdAt": "2026-11-13T00:37:41.405Z",
+    "updatedAt": "2026-11-13T00:37:41.402Z",
+    "amountPaid": "GHS 170.00",
+    "clientName": "TEST CLIENT SINGLE PAGE 5 BEACONS",
+    "referenceId": "GX_TEST_PAGE_COUNT_5B",
+    "surveyorName": "DANNY MENSA",
+    "regionalNumber": "SGGA.TEST_UNIQUE_002/2026",
+    "processedPoints": 5,
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_TEST_PAGE_COUNT_5B",
+    "verificationCode": "SGGA EX 19 1A/26/10/14/150-65"
+  },
+  {
+    "id": "GX_TEST_PAGE_COUNT",
+    "date": "14 October 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "333460.15",
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
+      },
+      {
+        "x": "333490.22",
+        "y": "1199620.114",
+        "beaconIndex": "SGGA EX 19 2A"
+      }
+    ],
+    "locality": "OYARIFA",
+    "createdAt": "2026-11-13T00:37:15.959Z",
+    "updatedAt": "2026-11-13T00:37:15.955Z",
+    "amountPaid": "GHS 150.00",
+    "clientName": "TEST CLIENT SINGLE PAGE",
+    "referenceId": "GX_TEST_PAGE_COUNT",
+    "surveyorName": "DANNY MENSA",
+    "regionalNumber": "SGGA.TEST_UNIQUE_001/2026",
+    "processedPoints": 4,
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_TEST_PAGE_COUNT",
+    "verificationCode": "SGGA EX 19 1A/26/10/14/150-65"
+  },
+  {
+    "id": "GX_COLDSTART_TEST",
+    "date": "10 November 2026",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "amountPaid": "GHS 150.00",
+    "clientName": "PERSISTED CLIENT AFTER DAYS",
+    "referenceId": "GX_COLDSTART_TEST",
+    "regionalNumber": "SGGA. COLD/2026",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_COLDSTART_TEST"
   }
 ]

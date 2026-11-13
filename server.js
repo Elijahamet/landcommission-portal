@@ -221,6 +221,16 @@ app.get('/api/saved-pdfs', (req, res) => {
   }
 });
 
+// List records with conflict inspection for authorized administrators
+app.get('/api/records/conflicts', (req, res) => {
+  try {
+    const report = db.getConflicts();
+    res.json({ success: true, ...report });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/records/:id', async (req, res) => {
   try {
     let record = await db.getByIdAsync(req.params.id);
@@ -273,16 +283,6 @@ app.get('/api/records/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Record not found' });
     }
     res.json({ success: true, record });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// List records with conflict inspection for authorized administrators
-app.get('/api/records/conflicts', (req, res) => {
-  try {
-    const report = db.getConflicts();
-    res.json({ success: true, ...report });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
