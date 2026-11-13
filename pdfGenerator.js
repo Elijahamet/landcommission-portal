@@ -72,10 +72,10 @@ function drawVectorQRCode(doc, targetUrl, x, y, size) {
 async function generateSlipPDF(record, verificationUrl) {
   return new Promise(async (resolve, reject) => {
     try {
-      // Create A4 PDF with exact dimensions
+      // Create A4 PDF with exact dimensions (Strictly 1 single page)
       const doc = new PDFDocument({
         size: 'A4',
-        margins: { top: 32, bottom: 32, left: 38, right: 38 },
+        margins: { top: 20, bottom: 20, left: 38, right: 38 },
         autoFirstPage: true
       });
 
@@ -98,25 +98,25 @@ async function generateSlipPDF(record, verificationUrl) {
         let y = startY;
 
         // 1. Header
-        doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000')
+        doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000')
           .text('LANDS COMMISSION', leftMargin, y, { characterSpacing: 0.5 });
-        y += 15;
+        y += 14;
 
         doc.font('Helvetica').fontSize(8.5).fillColor('#333333')
           .text('SURVEY AND MAPPING DIVISION', leftMargin, y, { characterSpacing: 0.3 });
-        y += 11;
+        y += 10;
 
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
           .text('EX DATA', leftMargin, y, { characterSpacing: 0.3 });
-        y += 8; // No space between EX DATA and table (exact match to sample)
+        y += 7; // No space between EX DATA and table (exact match to sample)
 
         // 2. Table: BEACON INDEX | X | Y
         const tableX = leftMargin;
         const colWidthIndex = contentWidth * 0.48;
         const colWidthX = contentWidth * 0.26;
         const colWidthY = contentWidth * 0.26;
-        const headerHeight = 17;
-        const rowHeight = 16;
+        const headerHeight = 15;
+        const rowHeight = 14;
 
         // Header background
         doc.rect(tableX, y, contentWidth, headerHeight).fill('#f1f3f5');
@@ -128,9 +128,9 @@ async function generateSlipPDF(record, verificationUrl) {
 
         // Header text
         doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
-        doc.text('BEACON INDEX', tableX + 6, y + 4.5);
-        doc.text('X', tableX + colWidthIndex + 6, y + 4.5);
-        doc.text('Y', tableX + colWidthIndex + colWidthX + 6, y + 4.5);
+        doc.text('BEACON INDEX', tableX + 6, y + 3.5);
+        doc.text('X', tableX + colWidthIndex + 6, y + 3.5);
+        doc.text('Y', tableX + colWidthIndex + colWidthX + 6, y + 3.5);
 
         y += headerHeight;
 
@@ -145,25 +145,25 @@ async function generateSlipPDF(record, verificationUrl) {
           doc.moveTo(tableX + colWidthIndex + colWidthX, y).lineTo(tableX + colWidthIndex + colWidthX, y + rowHeight).stroke();
 
           doc.font('Helvetica').fontSize(8).fillColor('#111111');
-          doc.text(String(b.beaconIndex || ''), tableX + 6, y + 4.5);
-          doc.text(String(b.x || ''), tableX + colWidthIndex + 6, y + 4.5);
-          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 6, y + 4.5);
+          doc.text(String(b.beaconIndex || ''), tableX + 6, y + 3.5);
+          doc.text(String(b.x || ''), tableX + colWidthIndex + 6, y + 3.5);
+          doc.text(String(b.y || ''), tableX + colWidthIndex + colWidthX + 6, y + 3.5);
 
           y += rowHeight;
         });
 
-        y += 8;
+        y += 7;
 
         // 3. Client Name
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000');
         doc.text('CLIENT NAME: ', leftMargin, y, { continued: true });
         doc.font('Helvetica-Bold').text(String(record.clientName || ''));
-        y += 16;
+        y += 14;
 
         // 4. Two-Column Metadata (With full blank line space in between text rows matching actual sample)
         const col1X = leftMargin;
         const col2X = leftMargin + contentWidth * 0.52;
-        const rowSpacing = 18;
+        const rowSpacing = 16;
 
         // Row 1
         doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
@@ -214,25 +214,25 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 16;
+        y += 13;
 
         // 5. Centered Vector QR Code (48 pt with 4-module quiet zone, 100% razor-sharp vector paths)
         const qrSize = 48;
         const qrX = leftMargin + (contentWidth - qrSize) / 2;
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
-        y += qrSize + 6;
+        y += qrSize + 4;
 
         // Thin horizontal separator line right under QR code (exact match to official sample)
         doc.save();
         doc.strokeColor('#dddddd').lineWidth(0.5);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 14;
+        y += 11;
 
         // 6. Authorization
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111')
           .text('AUTHORIZATION', leftMargin + (contentWidth - 100) / 2, y, { width: 100, align: 'center' });
-        y += 14;
+        y += 11;
 
         const authLabelWidth = 115;
         const authLineX = leftMargin + authLabelWidth;
@@ -246,27 +246,27 @@ async function generateSlipPDF(record, verificationUrl) {
           // Dotted line
           doc.save();
           doc.strokeColor('#555555').lineWidth(0.5).dash(1.5, { space: 2 });
-          doc.moveTo(authLineX, curY + 8).lineTo(leftMargin + contentWidth, curY + 8).stroke();
+          doc.moveTo(authLineX, curY + 7).lineTo(leftMargin + contentWidth, curY + 7).stroke();
           doc.restore();
         }
 
         drawDottedField('SMD OFFICER NAME:', y, record.smdOfficerName || '');
-        y += 13;
+        y += 11;
         drawDottedField('SIGNATURE:', y);
-        y += 13;
+        y += 11;
         drawDottedField('DATE:', y);
-        y += 13;
+        y += 11;
         drawDottedField('STAMP:', y);
-        y += 14;
+        y += 12;
 
         return y;
       }
 
       // Render Slip 1 (Top / Official Copy)
-      renderSlip(24);
+      renderSlip(20);
 
       // Cut Line Divider in the middle of page
-      const midY = 412;
+      const midY = 405;
       doc.save();
       doc.strokeColor('#888888').lineWidth(0.7).dash(5, { space: 4 });
       doc.moveTo(leftMargin, midY).lineTo(leftMargin + contentWidth * 0.42, midY).stroke();
@@ -280,7 +280,7 @@ async function generateSlipPDF(record, verificationUrl) {
         });
 
       // Render Slip 2 (Bottom / Customer Copy)
-      renderSlip(425);
+      renderSlip(418);
 
       doc.end();
     } catch (err) {
