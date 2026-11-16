@@ -90,7 +90,7 @@
   {
     "id": "GX4950255",
     "referenceId": "GX4950255",
-    "regionalNumber": "SGGA.G4950/2026",
+    "regionalNumber": "SGGA.G3488/2026",
     "verificationCode": "SGGA EX 19 1A/26/11/06/858-26",
     "transactionId": "job_c7f8a9b0d1e2f3a4",
     "stationLocation": "GWCL, DODOWA",
@@ -1525,5 +1525,135 @@
     "referenceId": "GX_COLDSTART_TEST",
     "regionalNumber": "SGGA. COLD/2026",
     "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX_COLDSTART_TEST"
+  },
+  {
+    "id": "GX6968892",
+    "date": "13 November 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "434768.62",
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
+      }
+    ],
+    "locality": "",
+    "createdAt": "2026-11-13T16:42:29.542Z",
+    "updatedAt": "2026-11-15T19:01:43.436Z",
+    "amountPaid": "GHS 170.00",
+    "clientName": "SALOMEY",
+    "referenceId": "GX6968892",
+    "surveyorName": "",
+    "transactionId": "job_859ac1b7d5260559",
+    "regionalNumber": "SGGA. F4425 26",
+    "smdOfficerName": "",
+    "processedPoints": 5,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX6968892",
+    "verificationCode": "SGGA CORS/2025/4/26/11/13/357-88"
+  },
+  {
+    "id": "GX7072824",
+    "date": "8 October 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "333460.15",
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
+      }
+    ],
+    "locality": "PRAMPRAM",
+    "createdAt": "2026-11-15T18:56:55.923Z",
+    "updatedAt": "2026-11-15T18:59:17.782Z",
+    "amountPaid": "GHS 190.00",
+    "clientName": "UBERT GYAN",
+    "referenceId": "GX7072824",
+    "surveyorName": "DANNY MENSA",
+    "regionalNumber": "SGGA. E3488 2026",
+    "smdOfficerName": "",
+    "processedPoints": 6,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX7072824",
+    "verificationCode": "SGGA EX 19 1A/26/11/15/303-30"
+  },
+  {
+    "id": "GX8386258",
+    "date": "14 October 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "333460.15",
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
+      }
+    ],
+    "locality": "OYARIFA",
+    "createdAt": "2026-11-15T18:56:54.741Z",
+    "updatedAt": "2026-11-15T18:56:54.741Z",
+    "amountPaid": "GHS 150.00",
+    "clientName": "UBERT",
+    "referenceId": "GX8386258",
+    "surveyorName": "DANNY MENSA",
+    "regionalNumber": "SGGA. E3488 2026",
+    "smdOfficerName": "",
+    "processedPoints": 4,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX8386258",
+    "verificationCode": "SGGA EX 19 1A/26/11/15/236-82"
+  },
+  {
+    "id": "GX9673102",
+    "date": "14 October 2026",
+    "region": "Greater Accra",
+    "status": "ACTIVE_VERIFIED",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "beacons": [
+      {
+        "x": "333460.15",
+        "y": "1199651.081",
+        "beaconIndex": "SGGA EX 19 1A"
+      }
+    ],
+    "locality": "OYARIFA",
+    "createdAt": "2026-11-15T18:56:53.025Z",
+    "updatedAt": "2026-11-15T18:56:53.025Z",
+    "amountPaid": "GHS 150.00",
+    "clientName": "UBERT DH",
+    "referenceId": "GX9673102",
+    "surveyorName": "DANNY MENSA",
+    "regionalNumber": "SGGA. E3488 2026",
+    "smdOfficerName": "",
+    "processedPoints": 4,
+    "stationLocation": "GWCL, DODOWA",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX9673102",
+    "verificationCode": "SGGA EX 19 1A/26/11/15/496-83"
+  },
+  {
+    "referenceId": "GX4970825",
+    "regionalNumber": "SGGA G8170/2026",
+    "verificationCode": "SGGA CORS/2025/4/26/11/10/150-ED",
+    "clientName": "THOMPSON KWESI OBIMPEH",
+    "beacons": [
+      {
+        "beaconIndex": "SGGA CORS/2025/4",
+        "x": "434768.62",
+        "y": "1230591.872"
+      }
+    ],
+    "id": "GX4970825",
+    "processedPoints": 4,
+    "amountPaid": "GHS 150.00",
+    "verificationUrl": "https://ghanacorsnet-verify.vercel.app/verify/GX4970825",
+    "baseUrl": "https://ghanacorsnet-verify.vercel.app",
+    "status": "ACTIVE_VERIFIED",
+    "updatedAt": "2026-11-16T10:26:10.606Z",
+    "createdAt": "2026-11-16T10:26:10.606Z"
   }
 ]

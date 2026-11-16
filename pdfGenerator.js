@@ -158,18 +158,18 @@ async function generateSlipPDF(record, verificationUrl) {
           y += rowHeight;
         });
 
-        y += (beacons.length > 2) ? 10.0 : 13.5;
+        y += (beacons.length > 2) ? 9.0 : 12.0;
 
         // 3. Client Name (Baseline at exact reference offset)
         doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
         doc.text('CLIENT NAME: ', 36.60, y, { continued: true });
         doc.font('Helvetica').text(String(record.clientName || ''));
-        y += 17.5;
+        y += 16.5;
 
         // 4. Two-Column Metadata (Generous readable spacing between lines)
         const col1X = 36.60;
         const col2X = 302.14;
-        const rowSpacing = 17.5;
+        const rowSpacing = 16.5;
 
         // Row 1
         doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000');
@@ -220,11 +220,11 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.text("SURVEYOR'S NAME: ", col1X, y, { continued: true });
         doc.font('Helvetica').text(String(record.surveyorName || ''));
 
-        y += 7.0;
+        y += 6.0;
 
-        // 5. Centered Approved Vector QR Code (45 pt size, strictly preserved)
-        const qrSize = 45.0;
-        const qrX = 275.14;
+        // 5. Centered Approved Vector QR Code (Slightly larger: 53.0 pt, preserving exact vector proportions and sharpness)
+        const qrSize = 53.0;
+        const qrX = (pageWidth - qrSize) / 2; // Exactly centered at 271.14 pt
         drawVectorQRCode(doc, qrTarget, qrX, y, qrSize);
         y += qrSize + 4.0;
 
@@ -233,16 +233,17 @@ async function generateSlipPDF(record, verificationUrl) {
         doc.strokeColor('#dddddd').lineWidth(0.75);
         doc.moveTo(leftMargin, y).lineTo(leftMargin + contentWidth, y).stroke();
         doc.restore();
-        y += 12.0;
+        y += 10.0;
 
         // 6. Authorization (Centered Title at 9.0pt, 4 dotted lines from X: 192.85 to 561.31)
         doc.font('Helvetica-Bold').fontSize(9.0).fillColor('#000000')
           .text('AUTHORIZATION', leftMargin, y, { width: contentWidth, align: 'center' });
-        y += 14.0;
+        y += 13.0;
 
         const authDotsStartX = 192.85;
         const authDotsEndX = 561.31;
-        const authRowSpacing = 17.5;
+        // Increased vertical spacing between individual fields by one spacing unit (23.5 pt) for comfortable handwriting
+        const authRowSpacing = 23.5;
 
         function drawDottedField(label, curY, value = '') {
           doc.font('Helvetica-Bold').fontSize(8.25).fillColor('#000000').text(label, 33.60, curY, { lineBreak: false });
@@ -268,11 +269,11 @@ async function generateSlipPDF(record, verificationUrl) {
         return y;
       }
 
-      // Render Slip 1 (Top / Official Copy, generous space at the tip of the PDF: Y: 45.0)
-      renderSlip(45.0);
+      // Render Slip 1 (Top / Official Copy, top margin at Y: 38.0)
+      const slip1End = renderSlip(38.0);
 
-      // Cut Line Divider at centered position Y: 414.0 (Dash: [5.67, 6.78], width: 1.5pt, #999999)
-      const midY = 414.0;
+      // Cut Line Divider positioned with balanced gap below Slip 1
+      const midY = Math.max(398.0, slip1End + 16.0);
       doc.save();
       doc.strokeColor('#999999').lineWidth(1.5).dash(5.67, { space: 6.78 });
       doc.moveTo(29.10, midY).lineTo(270.00, midY).stroke();
@@ -285,8 +286,10 @@ async function generateSlipPDF(record, verificationUrl) {
           align: 'center'
         });
 
-      // Render Slip 2 (Bottom / Customer Copy, pushed UP to Y: 430.0 so there is plenty of space below lines at the bottom)
-      renderSlip(430.0);
+      // Render Slip 2 (Bottom / Customer Copy): Moved UP by 2-3 spacing steps higher (14 pt below cut line)
+      // Reducing unnecessary empty space between the cut line and the beginning of the second form
+      const bottomSlipStart = midY + 14.0;
+      renderSlip(bottomSlipStart);
 
       doc.end();
     } catch (err) {

@@ -1449,6 +1449,15 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
+  function deleteMultipleRecordsFromLocalStorage(ids) {
+    try {
+      let records = getLocalRecords();
+      const cleanSet = new Set(ids.map(i => String(i).trim().toLowerCase()));
+      const filtered = records.filter(r => !cleanSet.has(String(r.referenceId || r.id).trim().toLowerCase()));
+      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(filtered));
+    } catch (e) {}
+  }
+
   // Automatically migrate ALL existing saved forms across all storage versions
   // Regenerates QR representations with new SVG vector standard, preserves all user data, IDs, and destination URLs
   function migrateAllExistingSavedForms() {
@@ -2090,6 +2099,52 @@ document.addEventListener('DOMContentLoaded', () => {
   let showingOnlyConflicts = false;
   const btnFilterConflicts = document.getElementById('btnFilterConflicts');
   const conflictsCountBadge = document.getElementById('conflictsCountBadge');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+  const selectedCountDisplay = document.getElementById('selectedCountDisplay');
+  const btnDeleteCount = document.getElementById('btnDeleteCount');
+  const selectedRecordIds = new Set();
+
+  function updateBatchSelectionUI(currentlyRenderedRecords = []) {
+    const totalSelected = selectedRecordIds.size;
+    if (selectedCountDisplay) selectedCountDisplay.textContent = totalSelected;
+    if (btnDeleteCount) btnDeleteCount.textContent = totalSelected;
+
+    if (btnDeleteSelected) {
+      if (totalSelected > 0) {
+        btnDeleteSelected.disabled = false;
+        btnDeleteSelected.style.opacity = '1';
+        btnDeleteSelected.style.cursor = 'pointer';
+      } else {
+        btnDeleteSelected.disabled = true;
+        btnDeleteSelected.style.opacity = '0.5';
+        btnDeleteSelected.style.cursor = 'not-allowed';
+      }
+    }
+
+    if (selectAllCheckbox) {
+      const renderedCount = currentlyRenderedRecords.length;
+      if (renderedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      } else {
+        const selectedRenderedCount = currentlyRenderedRecords.filter(r => 
+          selectedRecordIds.has(String(r.referenceId || r.id))
+        ).length;
+
+        if (selectedRenderedCount === renderedCount) {
+          selectAllCheckbox.checked = true;
+          selectAllCheckbox.indeterminate = false;
+        } else if (selectedRenderedCount > 0) {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = true;
+        } else {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = false;
+        }
+      }
+    }
+  }
 
   function getConflictingRecords(recordsList) {
     const list = recordsList || allRecords;
@@ -2137,6 +2192,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p style="font-size: 0.85rem;">${showingOnlyConflicts ? 'All records in registry have unique regional numbers and verification codes.' : 'Fill out the form and click "💾 Save New Document" to store your records here.'}</p>
         </div>
       `;
+      updateBatchSelectionUI([]);
       return;
     }
 
@@ -2145,14 +2201,19 @@ document.addEventListener('DOMContentLoaded', () => {
     records.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
+      item.style.display = 'flex';
+      item.style.alignItems = 'center';
+      item.style.gap = '12px';
       const refId = escapeHtml(r.referenceId || r.id);
       const vUrl = constructVerificationUrl(r);
       const isConflict = conflictsSet.has(refId.toUpperCase());
+      const isChecked = selectedRecordIds.has(refId);
       const conflictPill = isConflict
         ? `<span style="background: #fef3c7; color: #b45309; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;" title="Shares duplicate Regional Number or Verification Code with another document">⚠️ Duplicate Field</span>`
         : '';
 
       item.innerHTML = `
+        <input type="checkbox" class="record-select-checkbox" data-id="${refId}" ${isChecked ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; accent-color: #2563eb;" title="Select record">
         <div class="record-meta" style="flex: 1; min-width: 200px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
             <span style="background: #1e3a8a; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">${refId}</span>
@@ -2185,6 +2246,19 @@ document.addEventListener('DOMContentLoaded', () => {
       recordsListContainer.appendChild(item);
     });
 
+    // Checkbox selection listener
+    recordsListContainer.querySelectorAll('.record-select-checkbox').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const id = e.target.dataset.id;
+        if (e.target.checked) {
+          selectedRecordIds.add(id);
+        } else {
+          selectedRecordIds.delete(id);
+        }
+        updateBatchSelectionUI(records);
+      });
+    });
+
     // Row: Download PDF handler
     recordsListContainer.querySelectorAll('.btn-download-pdf-row').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -2210,12 +2284,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Row: Delete handler
+    // Row: Delete handler (Single record deletion remains fully functional)
     recordsListContainer.querySelectorAll('.btn-delete-record').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (confirm(`Are you sure you want to delete record ${id}?`)) {
           deleteRecordFromLocalStorage(id);
+          selectedRecordIds.delete(id);
           try {
             await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
           } catch (err) {}
@@ -2223,6 +2298,79 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(`Record ${id} deleted`);
         }
       });
+    });
+
+    updateBatchSelectionUI(records);
+  }
+
+  // Select All Checkbox Handler
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+      const currentList = showingOnlyConflicts ? getConflictingRecords(allRecords) : allRecords;
+      const q = recordSearchInput.value.toLowerCase().trim();
+      const visibleList = q ? currentList.filter(r => {
+        const text = [r.clientName, r.referenceId, r.regionalNumber, r.locality, r.surveyorName, r.date, r.verificationCode].filter(Boolean).join(' ').toLowerCase();
+        return text.includes(q);
+      }) : currentList;
+
+      if (selectAllCheckbox.checked) {
+        visibleList.forEach(r => {
+          const id = String(r.referenceId || r.id);
+          selectedRecordIds.add(id);
+        });
+      } else {
+        visibleList.forEach(r => {
+          const id = String(r.referenceId || r.id);
+          selectedRecordIds.delete(id);
+        });
+      }
+
+      recordsListContainer.querySelectorAll('.record-select-checkbox').forEach(cb => {
+        cb.checked = selectedRecordIds.has(cb.dataset.id);
+      });
+
+      updateBatchSelectionUI(visibleList);
+    });
+  }
+
+  // Batch Delete Selected Handler
+  if (btnDeleteSelected) {
+    btnDeleteSelected.addEventListener('click', async () => {
+      const count = selectedRecordIds.size;
+      if (count === 0) return;
+
+      const confirmed = confirm(`Are you sure you want to permanently delete ${count} selected document${count > 1 ? 's' : ''}?\n\nThis will remove them from both the database and offline archive.`);
+      if (!confirmed) return;
+
+      const idsToDelete = Array.from(selectedRecordIds);
+      btnDeleteSelected.disabled = true;
+      btnDeleteSelected.innerHTML = `⏳ Deleting (${count})...`;
+
+      try {
+        // 1. Remove from local browser cache
+        deleteMultipleRecordsFromLocalStorage(idsToDelete);
+
+        // 2. Remove from backend database in batch
+        const response = await fetch('/api/records/batch-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: idsToDelete })
+        });
+
+        const resData = await response.json();
+        if (resData.success) {
+          showToast(`✓ Successfully deleted ${count} selected record${count > 1 ? 's' : ''}`, 'success');
+        } else {
+          showToast(`Deleted from local cache: ${resData.message || 'Complete'}`, 'info');
+        }
+      } catch (err) {
+        console.error('Batch deletion error:', err);
+        showToast(`✓ Deleted ${count} records from local archive`, 'info');
+      } finally {
+        selectedRecordIds.clear();
+        await fetchRecordsList();
+        updateBatchSelectionUI();
+      }
     });
   }
 

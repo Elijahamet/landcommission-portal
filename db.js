@@ -377,6 +377,22 @@ const db = {
     return filtered.length < records.length;
   },
 
+  deleteMany(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return { deletedCount: 0 };
+    const records = readRecords();
+    const cleanIdSet = new Set(ids.map(id => String(id || '').trim().toLowerCase()));
+    const filtered = records.filter(r => 
+      !cleanIdSet.has(String(r.id || '').trim().toLowerCase()) && 
+      !cleanIdSet.has(String(r.referenceId || '').trim().toLowerCase())
+    );
+    const deletedCount = records.length - filtered.length;
+    if (deletedCount > 0) {
+      writeRecords(filtered);
+      pushCloudRecordsDebounced();
+    }
+    return { deletedCount };
+  },
+
   syncMany(incomingRecords) {
     if (!Array.isArray(incomingRecords)) return readRecords();
     const records = readRecords();

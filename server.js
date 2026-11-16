@@ -474,6 +474,20 @@ app.put('/api/records/:id', async (req, res) => {
   }
 });
 
+// Batch delete multiple records
+app.post('/api/records/batch-delete', (req, res) => {
+  try {
+    const ids = req.body && Array.isArray(req.body.ids) ? req.body.ids : [];
+    if (ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No record IDs provided for deletion' });
+    }
+    const result = db.deleteMany(ids);
+    res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Delete record
 app.delete('/api/records/:id', (req, res) => {
   try {
