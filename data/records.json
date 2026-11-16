@@ -1642,9 +1642,9 @@
     "clientName": "THOMPSON KWESI OBIMPEH",
     "beacons": [
       {
-        "beaconIndex": "SGGA CORS/2025/4",
         "x": "434768.62",
-        "y": "1230591.872"
+        "y": "1230591.872",
+        "beaconIndex": "SGGA CORS/2025/4"
       }
     ],
     "id": "GX4970825",
