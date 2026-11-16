@@ -987,5 +987,11 @@ body {
   .doc-cut-divider {
     margin: 8px 0 !important;
   }
+
+  .auth-dots {
+    border-bottom: 1.5px dotted #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
 
