@@ -3,8 +3,42 @@ document.addEventListener('DOMContentLoaded', () => {
   // Storage Keys for 100% Persistent Local Vault (supports 1000+ documents)
   const STORAGE_KEYS = {
     ACTIVE_DRAFT: 'landscommission_active_draft_v3',
-    SAVED_RECORDS: 'landscommission_saved_records_v3'
+    SAVED_RECORDS: 'landscommission_saved_records_v3',
+    DELETED_IDS: 'landscommission_deleted_record_ids_v1'
   };
+
+  function getDeletedRecordIds() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_IDS);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          return new Set(list.map(id => String(id).trim().toLowerCase()));
+        }
+      }
+    } catch (e) {}
+    return new Set();
+  }
+
+  function markRecordsAsDeleted(ids) {
+    try {
+      const deletedSet = getDeletedRecordIds();
+      const list = Array.isArray(ids) ? ids : [ids];
+      list.forEach(id => {
+        if (id) deletedSet.add(String(id).trim().toLowerCase());
+      });
+      localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(Array.from(deletedSet)));
+    } catch (e) {}
+  }
+
+  function unmarkRecordAsDeleted(id) {
+    try {
+      const deletedSet = getDeletedRecordIds();
+      if (id && deletedSet.delete(String(id).trim().toLowerCase())) {
+        localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(Array.from(deletedSet)));
+      }
+    } catch (e) {}
+  }
 
   // Permanent official verification domain (never temporary, never expiring)
   const OFFICIAL_PERMANENT_BASE = 'https://ghanacorsnet-verify.vercel.app';
@@ -1362,6 +1396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'landscommission_saved_records_v1',
         'landscommission_saved_records'
       ];
+      const deletedSet = getDeletedRecordIds();
       const map = new Map();
       keys.forEach(k => {
         try {
@@ -1370,16 +1405,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const list = JSON.parse(raw);
             if (Array.isArray(list)) {
               list.forEach(r => {
-                if (r) {
-                  if (r.verificationUrl && isTemporaryOrLocalUrl(r.verificationUrl)) {
-                    r.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${r.referenceId || r.id}`;
-                  }
-                  if (r.baseUrl && isTemporaryOrLocalUrl(r.baseUrl)) {
-                    r.baseUrl = OFFICIAL_PERMANENT_BASE;
-                  }
-                }
+                if (!r) return;
                 const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
-                if (idKey && !map.has(idKey)) {
+                if (!idKey || deletedSet.has(idKey)) return;
+                if (r.verificationUrl && isTemporaryOrLocalUrl(r.verificationUrl)) {
+                  r.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${r.referenceId || r.id}`;
+                }
+                if (r.baseUrl && isTemporaryOrLocalUrl(r.baseUrl)) {
+                  r.baseUrl = OFFICIAL_PERMANENT_BASE;
+                }
+                if (!map.has(idKey)) {
                   map.set(idKey, r);
                 }
               });
@@ -1397,6 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function saveRecordToLocalStorage(rec, forceNew = false) {
     try {
       const cleanRef = String(rec.referenceId || rec.id || '').trim().toUpperCase();
+      unmarkRecordAsDeleted(cleanRef);
       rec.referenceId = cleanRef;
       rec.id = cleanRef;
       rec.verificationUrl = `${OFFICIAL_PERMANENT_BASE}/verify/${cleanRef}`;
@@ -1441,20 +1477,54 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function deleteRecordFromLocalStorage(id) {
+    if (!id) return;
     try {
-      let records = getLocalRecords();
+      markRecordsAsDeleted(id);
       const cleanId = String(id).trim().toLowerCase();
-      const filtered = records.filter(r => String(r.referenceId || r.id).trim().toLowerCase() !== cleanId);
-      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(filtered));
+      const keys = [
+        'landscommission_saved_records_v3',
+        'landscommission_saved_records_v2',
+        'landscommission_saved_records_v1',
+        'landscommission_saved_records'
+      ];
+      keys.forEach(k => {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const filtered = list.filter(r => String(r.referenceId || r.id || '').trim().toLowerCase() !== cleanId);
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          }
+        } catch (e) {}
+      });
     } catch (e) {}
   }
 
   function deleteMultipleRecordsFromLocalStorage(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return;
     try {
-      let records = getLocalRecords();
-      const cleanSet = new Set(ids.map(i => String(i).trim().toLowerCase()));
-      const filtered = records.filter(r => !cleanSet.has(String(r.referenceId || r.id).trim().toLowerCase()));
-      localStorage.setItem(STORAGE_KEYS.SAVED_RECORDS, JSON.stringify(filtered));
+      markRecordsAsDeleted(ids);
+      const cleanSet = new Set(ids.map(i => String(i || '').trim().toLowerCase()));
+      const keys = [
+        'landscommission_saved_records_v3',
+        'landscommission_saved_records_v2',
+        'landscommission_saved_records_v1',
+        'landscommission_saved_records'
+      ];
+      keys.forEach(k => {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const filtered = list.filter(r => !cleanSet.has(String(r.referenceId || r.id || '').trim().toLowerCase()));
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          }
+        } catch (e) {}
+      });
     } catch (e) {}
   }
 
@@ -1497,11 +1567,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'landscommission_saved_records'
       ];
       const recordMap = new Map();
+      const deletedSet = getDeletedRecordIds();
 
-      // 1. Preload official saved records
+      // 1. Preload official saved records (excluding deleted ones)
       OFFICIAL_SAVED_RECORDS.forEach(r => {
         const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
-        if (idKey) {
+        if (idKey && !deletedSet.has(idKey)) {
           const cleanRec = { ...r };
           cleanRec.verificationUrl = cleanRec.verificationUrl || `https://ghanacorsnet-verify.vercel.app/verify/${cleanRec.referenceId || cleanRec.id}`;
           recordMap.set(idKey, cleanRec);
@@ -1517,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(list)) {
               list.forEach(r => {
                 const idKey = String(r.referenceId || r.id || '').trim().toLowerCase();
-                if (idKey) {
+                if (idKey && !deletedSet.has(idKey)) {
                   const existing = recordMap.get(idKey);
                   // Merge preserving all user-entered form details
                   const merged = existing ? { ...existing, ...r } : { ...r };
@@ -2058,20 +2129,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Merge and deduplicate by referenceId
     const recordMap = new Map();
+    const deletedSet = getDeletedRecordIds();
 
-    // 1. Always ensure all official saved documents & PDFs are in the catalog
+    // 1. Always ensure all official saved documents & PDFs are in the catalog (excluding deleted ones)
     OFFICIAL_SAVED_RECORDS.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) recordMap.set(key, r);
+      if (key && !deletedSet.has(key)) recordMap.set(key, r);
     });
 
     serverRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) recordMap.set(key, r);
+      if (key && !deletedSet.has(key)) recordMap.set(key, r);
     });
     localRecords.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) {
+      if (key && !deletedSet.has(key)) {
         const existing = recordMap.get(key);
         if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
           recordMap.set(key, r);
@@ -2093,7 +2165,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     refreshRecordsBadge();
-    renderRecordsList(showingOnlyConflicts ? conflicts : allRecords);
+    const currentList = showingOnlyConflicts ? conflicts : allRecords;
+    const q = recordSearchInput ? recordSearchInput.value.toLowerCase().trim() : '';
+    const filteredList = q ? currentList.filter(r => {
+      const text = [r.clientName, r.referenceId, r.regionalNumber, r.locality, r.surveyorName, r.date, r.verificationCode].filter(Boolean).join(' ').toLowerCase();
+      return text.includes(q);
+    }) : currentList;
+    renderRecordsList(filteredList);
   }
 
   let showingOnlyConflicts = false;
@@ -2287,15 +2365,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Row: Delete handler (Single record deletion remains fully functional)
     recordsListContainer.querySelectorAll('.btn-delete-record').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        if (confirm(`Are you sure you want to delete record ${id}?`)) {
+        e.stopPropagation();
+        const btnEl = e.currentTarget || e.target.closest('.btn-delete-record');
+        const id = btnEl ? btnEl.dataset.id : null;
+        if (!id) return;
+        if (confirm(`Are you sure you want to permanently delete record ${id}?`)) {
+          btnEl.disabled = true;
           deleteRecordFromLocalStorage(id);
           selectedRecordIds.delete(id);
           try {
             await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
           } catch (err) {}
           await fetchRecordsList();
-          showToast(`Record ${id} deleted`);
+          showToast(`✓ Record ${id} deleted`, 'success');
         }
       });
     });
@@ -2368,6 +2450,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`✓ Deleted ${count} records from local archive`, 'info');
       } finally {
         selectedRecordIds.clear();
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
         await fetchRecordsList();
         updateBatchSelectionUI();
       }

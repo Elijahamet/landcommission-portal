@@ -24,8 +24,54 @@ try {
 const isVercel = Boolean(process.env.VERCEL);
 const DATA_DIR = isVercel ? path.join(os.tmpdir(), 'data') : path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'records.json');
+const DELETED_FILE = path.join(DATA_DIR, 'deleted_ids.json');
+
+let bundledDeletedList = [];
+try {
+  bundledDeletedList = require('./data/deleted_ids.json');
+} catch (e) {
+  try {
+    bundledDeletedList = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'deleted_ids.json'), 'utf-8'));
+  } catch (e2) {
+    bundledDeletedList = [];
+  }
+}
 
 let inMemoryRecords = Array.isArray(bundledRecords) ? [...bundledRecords] : [];
+
+function getDeletedIds() {
+  const set = new Set();
+  if (Array.isArray(bundledDeletedList)) {
+    bundledDeletedList.forEach(id => {
+      if (id) set.add(String(id).trim().toLowerCase());
+    });
+  }
+  try {
+    if (fs.existsSync(DELETED_FILE)) {
+      const raw = fs.readFileSync(DELETED_FILE, 'utf-8');
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        list.forEach(id => {
+          if (id) set.add(String(id).trim().toLowerCase());
+        });
+      }
+    }
+  } catch (e) {}
+  return set;
+}
+
+function saveDeletedIds(deletedSet) {
+  try {
+    const arr = Array.from(deletedSet);
+    fs.writeFileSync(DELETED_FILE, JSON.stringify(arr, null, 2), 'utf-8');
+    const repoDeletedFile = path.join(__dirname, 'data', 'deleted_ids.json');
+    if (repoDeletedFile !== DELETED_FILE) {
+      try {
+        fs.writeFileSync(repoDeletedFile, JSON.stringify(arr, null, 2), 'utf-8');
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
 
 // Ensure data folder exists
 try {
@@ -37,7 +83,7 @@ try {
 function initDb() {
   try {
     if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(bundledRecords, null, 2), 'utf-8');
+      fs.writeFileSync(DB_FILE, JSON.stringify(bundledRecords || [], null, 2), 'utf-8');
       inMemoryRecords = Array.isArray(bundledRecords) ? [...bundledRecords] : [];
     }
   } catch (err) {
@@ -45,52 +91,37 @@ function initDb() {
   }
 }
 
-function mergeWithBundled(records) {
-  const map = new Map();
-  // First load bundled official records
-  if (Array.isArray(bundledRecords)) {
-    bundledRecords.forEach(r => {
-      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) map.set(key, r);
-    });
-  }
-  // Then overlay or add runtime records
-  if (Array.isArray(records)) {
-    records.forEach(r => {
-      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) {
-        if (r.verificationUrl && r.verificationUrl.includes('landcommission-portal.vercel.app')) {
-          r.verificationUrl = r.verificationUrl.replace('landcommission-portal.vercel.app', 'ghanacorsnet-verify.vercel.app');
-        }
-        if (r.baseUrl && r.baseUrl.includes('landcommission-portal.vercel.app')) {
-          r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
-        }
-        const existing = map.get(key);
-        map.set(key, { ...(existing || {}), ...r });
-      }
-    });
-  }
-  return Array.from(map.values());
-}
-
 function readRecords() {
   initDb();
+  const deletedSet = getDeletedIds();
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
-      inMemoryRecords = mergeWithBundled(parsed);
-      return inMemoryRecords;
+      if (Array.isArray(parsed)) {
+        inMemoryRecords = parsed.filter(r => {
+          const k = String(r.referenceId || r.id || '').trim().toLowerCase();
+          return k && !deletedSet.has(k);
+        });
+        return inMemoryRecords;
+      }
     }
   } catch (err) {
     console.warn('Read records file warning, using memory:', err.message);
   }
-  inMemoryRecords = mergeWithBundled(inMemoryRecords);
+  inMemoryRecords = (inMemoryRecords || []).filter(r => {
+    const k = String(r.referenceId || r.id || '').trim().toLowerCase();
+    return k && !deletedSet.has(k);
+  });
   return inMemoryRecords;
 }
 
 function writeRecords(records) {
-  inMemoryRecords = mergeWithBundled(records);
+  const deletedSet = getDeletedIds();
+  inMemoryRecords = (records || []).filter(r => {
+    const k = String(r.referenceId || r.id || '').trim().toLowerCase();
+    return k && !deletedSet.has(k);
+  });
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(inMemoryRecords, null, 2), 'utf-8');
   } catch (err) {
@@ -264,15 +295,20 @@ const db = {
   getById(id) {
     if (!id) return null;
     const cleanId = String(id).trim().toLowerCase();
+    const deletedSet = getDeletedIds();
+    if (deletedSet.has(cleanId)) return null;
+
     const records = readRecords();
     let found = records.find(r => 
-      String(r.id || '').toLowerCase() === cleanId || 
-      String(r.referenceId || '').toLowerCase() === cleanId
+      String(r.id || '').trim().toLowerCase() === cleanId || 
+      String(r.referenceId || '').trim().toLowerCase() === cleanId
     );
     if (!found && Array.isArray(bundledRecords)) {
       found = bundledRecords.find(r => 
-        String(r.id || '').toLowerCase() === cleanId || 
-        String(r.referenceId || '').toLowerCase() === cleanId
+        (String(r.id || '').trim().toLowerCase() === cleanId || 
+         String(r.referenceId || '').trim().toLowerCase() === cleanId) &&
+        !deletedSet.has(String(r.id || '').trim().toLowerCase()) &&
+        !deletedSet.has(String(r.referenceId || '').trim().toLowerCase())
       );
     }
     return found || null;
@@ -299,6 +335,12 @@ const db = {
     let cleanId = String(record.referenceId || record.id || '').trim().toUpperCase();
     if (!cleanId || cleanId === 'UNDEFINED' || cleanId === 'NULL') {
       cleanId = `GX${Math.floor(1000000 + Math.random() * 9000000)}`;
+    }
+
+    // Un-delete if cleanId was previously marked as deleted
+    const deletedSet = getDeletedIds();
+    if (deletedSet.delete(cleanId.toLowerCase())) {
+      saveDeletedIds(deletedSet);
     }
 
     const records = readRecords();
@@ -366,51 +408,78 @@ const db = {
   },
 
   delete(id) {
-    const records = readRecords();
+    if (!id) return false;
     const cleanId = String(id).trim().toLowerCase();
+    const deletedSet = getDeletedIds();
+    deletedSet.add(cleanId);
+    saveDeletedIds(deletedSet);
+
+    // Also remove from bundledRecords in memory
+    if (Array.isArray(bundledRecords)) {
+      bundledRecords = bundledRecords.filter(r => {
+        const k = String(r.referenceId || r.id || '').trim().toLowerCase();
+        return k !== cleanId;
+      });
+    }
+
+    const records = readRecords();
     const filtered = records.filter(r => 
-      String(r.id || '').toLowerCase() !== cleanId && 
-      String(r.referenceId || '').toLowerCase() !== cleanId
+      String(r.id || '').trim().toLowerCase() !== cleanId && 
+      String(r.referenceId || '').trim().toLowerCase() !== cleanId
     );
     writeRecords(filtered);
     pushCloudRecordsDebounced();
-    return filtered.length < records.length;
+    return true;
   },
 
   deleteMany(ids) {
     if (!Array.isArray(ids) || ids.length === 0) return { deletedCount: 0 };
+    const cleanIdSet = new Set(ids.map(id => String(id || '').trim().toLowerCase()).filter(Boolean));
+    if (cleanIdSet.size === 0) return { deletedCount: 0 };
+
+    const deletedSet = getDeletedIds();
+    cleanIdSet.forEach(id => deletedSet.add(id));
+    saveDeletedIds(deletedSet);
+
+    // Also remove from bundledRecords in memory
+    if (Array.isArray(bundledRecords)) {
+      bundledRecords = bundledRecords.filter(r => {
+        const k = String(r.referenceId || r.id || '').trim().toLowerCase();
+        return !cleanIdSet.has(k);
+      });
+    }
+
     const records = readRecords();
-    const cleanIdSet = new Set(ids.map(id => String(id || '').trim().toLowerCase()));
     const filtered = records.filter(r => 
       !cleanIdSet.has(String(r.id || '').trim().toLowerCase()) && 
       !cleanIdSet.has(String(r.referenceId || '').trim().toLowerCase())
     );
     const deletedCount = records.length - filtered.length;
-    if (deletedCount > 0) {
-      writeRecords(filtered);
-      pushCloudRecordsDebounced();
-    }
-    return { deletedCount };
+    writeRecords(filtered);
+    pushCloudRecordsDebounced();
+    return { deletedCount: Math.max(deletedCount, cleanIdSet.size) };
   },
 
   syncMany(incomingRecords) {
     if (!Array.isArray(incomingRecords)) return readRecords();
     const records = readRecords();
+    const deletedSet = getDeletedIds();
     const map = new Map();
 
     // Index existing records
     records.forEach(r => {
       const key = String(r.referenceId || r.id || '').trim().toLowerCase();
-      if (key) map.set(key, r);
+      if (key && !deletedSet.has(key)) map.set(key, r);
     });
 
     // Merge incoming records
     incomingRecords.forEach(r => {
-      const key = String(r.referenceId || r.id || '').trim().toUpperCase();
-      if (!key) return;
-      r.id = key;
-      r.referenceId = key;
-      r.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${key}`;
+      const key = String(r.referenceId || r.id || '').trim().toLowerCase();
+      if (!key || deletedSet.has(key)) return;
+      const upperKey = String(r.referenceId || r.id || '').trim().toUpperCase();
+      r.id = upperKey;
+      r.referenceId = upperKey;
+      r.verificationUrl = `https://ghanacorsnet-verify.vercel.app/verify/${upperKey}`;
       r.baseUrl = 'https://ghanacorsnet-verify.vercel.app';
       const existing = map.get(key);
       if (!existing || new Date(r.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {

@@ -10,6 +10,7 @@ try {
   require('pdfkit/js/standard-fonts/TimesBold.cjs');
   require('pdfkit/js/standard-fonts/chunks/standardGlyphNames-DNHAb7rp.cjs');
   require('../data/records.json');
+  require('../data/deleted_ids.json');
 } catch (e) {
   // Ignore in case running in an environment with different packaging
 }
